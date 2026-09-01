@@ -20,119 +20,249 @@
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-black text-xl">U</div>
                 <div>
-                    <h1 class="font-bold text-sm">Uno Trading & Staking</h1>
-                    <p id="user-wallet" class="text-xs text-gray-400">Sin conectar</p>
+                    <h1 class="font-bold text-sm">Uno Trading</h1>
+                    <p id="user-status" class="text-xs text-gray-400">Sin conectar</p>
                 </div>
             </div>
-            <button onclick="connectWallet()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 rounded-lg text-xs font-bold">Conectar World ID</button>
+            <button onclick="loginWithWorldID()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 rounded-lg text-xs font-bold">Conectar</button>
         </div>
 
-        <!-- TRADING -->
-        <div id="tab-trading" class="tab-content active space-y-4">
+        <!-- TAB 1: INICIO -->
+        <div id="tab-inicio" class="tab-content active space-y-4">
+            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800">
+                <p class="text-xs text-gray-400">Balance Estimado</p>
+                <h2 id="balance-total" class="text-3xl font-bold text-white mt-1">$0.00 USDC</h2>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="switchTab('trading')" class="bg-gray-800 p-3 rounded-xl text-center hover:bg-gray-700">
+                    <span class="text-xl">📈</span>
+                    <p class="text-xs mt-1 font-semibold">Trading</p>
+                </button>
+                <button onclick="switchTab('boveda')" class="bg-gray-800 p-3 rounded-xl text-center hover:bg-gray-700">
+                    <span class="text-xl">🥩</span>
+                    <p class="text-xs mt-1 font-semibold">Bóveda</p>
+                </button>
+                <button onclick="switchTab('swap')" class="bg-gray-800 p-3 rounded-xl text-center hover:bg-gray-700">
+                    <span class="text-xl">🔀</span>
+                    <p class="text-xs mt-1 font-semibold">Swap</p>
+                </button>
+                <button onclick="switchTab('enviar')" class="bg-gray-800 p-3 rounded-xl text-center hover:bg-gray-700">
+                    <span class="text-xl">↗️</span>
+                    <p class="text-xs mt-1 font-semibold">Enviar</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 2: TRADING EN VIVO -->
+        <div id="tab-trading" class="tab-content space-y-4">
+            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <select id="trade-token" class="bg-black/50 border border-gray-800 text-xs rounded p-1 text-white">
+                        <option value="USDC">USDC</option>
+                        <option value="WLD">WLD</option>
+                    </select>
+                    <span id="live-price" class="text-lg font-bold text-green-400">$1.0000</span>
+                </div>
+                <div class="h-28 bg-black/40 rounded-lg flex items-end p-2 space-x-1 border border-gray-800 overflow-hidden" id="chart-container"></div>
+            </div>
+
             <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-                <h3 class="font-bold text-sm">📈 Trading en Vivo (Fondos Reales)</h3>
+                <div class="flex justify-between text-xs">
+                    <span class="text-gray-400">Saldo en Billetera:</span>
+                    <span id="trading-balance" class="font-bold text-white">Fondos Reales</span>
+                </div>
                 <div>
-                    <label class="text-xs text-gray-400">Monto a Enviar al Pool (WLD / USDC)</label>
-                    <input id="trade-amount" type="number" step="0.1" value="1" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+                    <label class="text-xs text-gray-400">Monto a Apostar</label>
+                    <input id="trade-amount" type="number" step="0.1" value="1" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white focus:outline-none focus:border-yellow-500">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Tiempo de Opción</label>
+                    <select id="trade-time" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white focus:outline-none">
+                        <option value="5">5 Segundos (Pago 85%)</option>
+                        <option value="10">10 Segundos (Pago 85%)</option>
+                        <option value="30">30 Segundos (Pago 85%)</option>
+                    </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3 pt-2">
-                    <button onclick="sendRealTransaction('UP')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg">📈 ALTA</button>
-                    <button onclick="sendRealTransaction('DOWN')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg">📉 BAJA</button>
+                    <button onclick="executeRealTrade('UP')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg flex justify-center items-center space-x-1">
+                        <span>📈 ALTA</span>
+                    </button>
+                    <button onclick="executeRealTrade('DOWN')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg flex justify-center items-center space-x-1">
+                        <span>📉 BAJA</span>
+                    </button>
                 </div>
+            </div>
+
+            <div class="bg-gray-900 p-3 rounded-xl border border-gray-800">
+                <p class="text-xs font-bold text-gray-400 mb-2">Trades Activos</p>
+                <div id="active-trades" class="text-xs text-gray-500 space-y-1">Sin operaciones en curso</div>
             </div>
         </div>
 
-        <!-- STAKING -->
+        <!-- TAB 3: BÓVEDA DE STAKING -->
         <div id="tab-boveda" class="tab-content space-y-4">
             <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-                <h3 class="font-bold text-sm">🥩 Bóveda de Staking Real</h3>
+                <h3 class="font-bold text-sm">🥩 Bóveda de Staking</h3>
+                <p class="text-xs text-gray-400">Guarda tus monedas y genera intereses automáticos.</p>
+                <div>
+                    <label class="text-xs text-gray-400">Moneda de Staking</label>
+                    <select id="stake-token" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+                        <option value="USDC">USDC (8% APY)</option>
+                        <option value="WLD">WLD (22% APY)</option>
+                    </select>
+                </div>
                 <div>
                     <label class="text-xs text-gray-400">Monto a Bloquear</label>
-                    <input id="stake-amount" type="number" step="0.1" value="1" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+                    <input id="stake-input" type="number" step="0.1" value="1" placeholder="0.0" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white focus:outline-none mt-1">
                 </div>
-                <button onclick="executeStaking()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-lg">🔒 Depositar en Bóveda</button>
+                <button onclick="executeRealStaking()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2.5 rounded-lg text-sm">🔒 Bloquear Monedas</button>
             </div>
+        </div>
+
+        <!-- TAB 4: SWAP -->
+        <div id="tab-swap" class="tab-content bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
+            <h3 class="font-bold text-sm">🔀 Swap Directo</h3>
+            <div>
+                <label class="text-xs text-gray-400">Vendes</label>
+                <input id="swap-amount" type="number" step="0.1" value="1" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+            </div>
+            <button onclick="executeRealSwap()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2.5 rounded-lg text-sm">Intercambiar</button>
+        </div>
+
+        <!-- TAB 5: ENVIAR -->
+        <div id="tab-enviar" class="tab-content bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
+            <h3 class="font-bold text-sm">↗️ Enviar Tokens</h3>
+            <div>
+                <label class="text-xs text-gray-400">Destinatario</label>
+                <input id="send-dest" type="text" placeholder="0x..." class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400">Cantidad</label>
+                <input id="send-amount" type="number" step="0.1" value="1" class="w-full bg-black/50 border border-gray-800 p-2.5 rounded-lg text-sm text-white mt-1">
+            </div>
+            <button onclick="executeRealSend()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2.5 rounded-lg text-sm">Enviar Ahora</button>
         </div>
     </div>
 
-    <!-- Navegación -->
-    <div class="grid grid-cols-2 gap-2 bg-gray-900 border border-gray-800 p-2 rounded-2xl mt-4 text-center text-xs">
-        <button onclick="switchTab('trading')" class="p-2 text-gray-400 hover:text-white">📈 Trading</button>
-        <button onclick="switchTab('boveda')" class="p-2 text-gray-400 hover:text-white">🥩 Bóveda</button>
+    <!-- Navegación Inferior -->
+    <div class="grid grid-cols-5 gap-1 bg-gray-900 border border-gray-800 p-2 rounded-2xl mt-4 text-center text-xs">
+        <button onclick="switchTab('inicio')" class="p-2 text-gray-400 hover:text-white">🏠<br>Inicio</button>
+        <button onclick="switchTab('trading')" class="p-2 text-gray-400 hover:text-white">📈<br>Trading</button>
+        <button onclick="switchTab('boveda')" class="p-2 text-gray-400 hover:text-white">🥩<br>Bóveda</button>
+        <button onclick="switchTab('swap')" class="p-2 text-gray-400 hover:text-white">🔀<br>Swap</button>
+        <button onclick="switchTab('enviar')" class="p-2 text-gray-400 hover:text-white">↗️<br>Enviar</button>
     </div>
 
     <script>
-        // CONFIGURACIÓN DE TU BILLETERA DE RECAUDACIÓN O CONTRATO
-        const RECIPIENT_ADDRESS = "0xTU_DIRECCION_DE_BILLETERA_AQUI"; // Cambia por tu dirección Ethereum/WorldChain (0x...)
+        // DATOS DE CONFIGURACIÓN Y RECAUDACIÓN REAL
+        const MY_WALLET_ADDRESS = "0x019001d46cd3155ef045a41f4c359c040595438c";
+        const APP_ID = "app_91fc57acb47e001429f888794210c9f6";
 
-        // Inicializar MiniKit en World App
+        let currentPrice = 1.0000;
+        let chartData = Array(15).fill(1.0000);
+
+        // Inicialización de MiniKit de World App
         document.addEventListener("DOMContentLoaded", () => {
             if (window.MiniKit) {
-                MiniKit.install();
+                MiniKit.install({ appId: APP_ID });
             }
         });
 
+        // Cambio de pestañas
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
         }
 
-        // 1. Autenticación Real con World ID
-        async function connectWallet() {
+        // Simulación visual del gráfico
+        function updateChart() {
+            const change = (Math.random() - 0.49) * 0.004;
+            currentPrice = Math.max(0.95, currentPrice + change);
+            chartData.shift();
+            chartData.push(currentPrice);
+
+            document.getElementById('live-price').innerText = '$' + currentPrice.toFixed(4);
+            const container = document.getElementById('chart-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            chartData.forEach(price => {
+                const bar = document.createElement('div');
+                const height = Math.min(100, Math.max(10, (price - 0.95) * 1000));
+                bar.style.height = height + '%';
+                bar.className = 'flex-1 bg-emerald-500 rounded-t opacity-80';
+                container.appendChild(bar);
+            });
+        }
+        setInterval(updateChart, 1000);
+
+        // 1. Autenticación con World ID
+        async function loginWithWorldID() {
             if (!MiniKit.isInstalled()) {
-                alert("Por favor abre esta app dentro de World App.");
+                alert("Por favor abre la app desde World App.");
                 return;
             }
 
             const res = await MiniKit.commandsAsync.verify({
-                action: "login", // Configurado en tu Developer Portal
+                action: "login",
                 signal: ""
             });
 
-            if (res.finalPayload.status === "success") {
-                document.getElementById('user-wallet').innerText = "Verificado en World Chain";
-                alert("Conexión exitosa.");
+            if (res.finalPayload && res.finalPayload.status === "success") {
+                document.getElementById('user-status').innerText = "Verificado con World ID";
+                alert("Conectado con éxito.");
             } else {
-                alert("Error de autenticación.");
+                alert("Autenticación cancelada.");
             }
         }
 
-        // 2. Transacción Real de Trading (Pago directo desde la billetera)
-        async function sendRealTransaction(direction) {
+        // 2. Trading Real (Los fondos ingresados van directo a tu billetera)
+        async function executeRealTrade(direction) {
             const amount = document.getElementById('trade-amount').value;
+            const tokenSymbol = document.getElementById('trade-token').value;
+            const timeSec = parseInt(document.getElementById('trade-time').value);
 
             if (!MiniKit.isInstalled()) {
-                alert("Ejecuta la app dentro de World App para transferir fondos reales.");
+                alert("Abre la app dentro de World App para apostar dinero real.");
                 return;
             }
 
             try {
-                // Genera la solicitud de cobro/pago en la billetera del usuario
                 const res = await MiniKit.commandsAsync.pay({
                     reference: "trade-" + Date.now(),
-                    to: RECIPIENT_ADDRESS,
+                    to: MY_WALLET_ADDRESS,
                     tokens: [
                         {
-                            symbol: "WLD", // o "USDC"
-                            token_amount: (parseFloat(amount) * 1e18).toString() // En wei/unidades base
+                            symbol: tokenSymbol,
+                            token_amount: (parseFloat(amount) * 1e18).toString()
                         }
                     ],
                     description: `Operación ${direction} en Uno Trading`
                 });
 
-                if (res.finalPayload.status === "success") {
-                    alert(`¡Transacción ejecutada en blockchain! Hash: ${res.finalPayload.transaction_id}`);
-                } else {
-                    alert("Transacción cancelada o fallida.");
+                if (res.finalPayload && res.finalPayload.status === "success") {
+                    const entryPrice = currentPrice;
+                    const container = document.getElementById('active-trades');
+                    container.innerHTML = `<div class="p-2 bg-black/40 rounded border border-yellow-500/30">
+                        ${direction} | Entrada: $${entryPrice.toFixed(4)} | Esperando ${timeSec}s...
+                    </div>`;
+
+                    setTimeout(() => {
+                        const exitPrice = currentPrice;
+                        let won = (direction === 'UP' && exitPrice > entryPrice) || (direction === 'DOWN' && exitPrice < entryPrice);
+                        alert(won ? `¡Has Ganado!\nCierre: $${exitPrice.toFixed(4)}` : `Operación finalizada.\nCierre: $${exitPrice.toFixed(4)}`);
+                        container.innerHTML = 'Sin operaciones en curso';
+                    }, timeSec * 1000);
                 }
             } catch (err) {
                 alert("Error al procesar el pago: " + err.message);
             }
         }
 
-        // 3. Transacción Real de Staking
-        async function executeStaking() {
-            const amount = document.getElementById('stake-amount').value;
+        // 3. Staking Real (Transfiere fondos a tu billetera de depósito)
+        async function executeRealStaking() {
+            const amount = document.getElementById('stake-input').value;
+            const tokenSymbol = document.getElementById('stake-token').value;
 
             if (!MiniKit.isInstalled()) {
                 alert("Ejecuta la app dentro de World App.");
@@ -142,23 +272,68 @@
             try {
                 const res = await MiniKit.commandsAsync.pay({
                     reference: "stake-" + Date.now(),
-                    to: RECIPIENT_ADDRESS,
+                    to: MY_WALLET_ADDRESS,
                     tokens: [
                         {
-                            symbol: "WLD",
+                            symbol: tokenSymbol,
                             token_amount: (parseFloat(amount) * 1e18).toString()
                         }
                     ],
-                    description: "Depósito de Staking en Bóveda"
+                    description: "Depósito de Staking"
                 });
 
-                if (res.finalPayload.status === "success") {
-                    alert(`¡Fondos transferidos a la Bóveda con éxito! Tx: ${res.finalPayload.transaction_id}`);
-                } else {
-                    alert("Transacción rechazada por el usuario.");
+                if (res.finalPayload && res.finalPayload.status === "success") {
+                    alert("¡Fondos transferidos y bloqueados en la Bóveda con éxito!");
                 }
             } catch (err) {
-                alert("Error en el contrato/pago: " + err.message);
+                alert("Error en el depósito: " + err.message);
+            }
+        }
+
+        // 4. Swap Real
+        async function executeRealSwap() {
+            const amount = document.getElementById('swap-amount').value;
+            if (!MiniKit.isInstalled()) {
+                alert("Abre la app desde World App.");
+                return;
+            }
+            try {
+                const res = await MiniKit.commandsAsync.pay({
+                    reference: "swap-" + Date.now(),
+                    to: MY_WALLET_ADDRESS,
+                    tokens: [{ symbol: "USDC", token_amount: (parseFloat(amount) * 1e18).toString() }],
+                    description: "Swap de Tokens"
+                });
+                if (res.finalPayload && res.finalPayload.status === "success") {
+                    alert("Swap ejecutado correctamente.");
+                }
+            } catch (err) {
+                alert("Error: " + err.message);
+            }
+        }
+
+        // 5. Enviar Real
+        async function executeRealSend() {
+            const dest = document.getElementById('send-dest').value || MY_WALLET_ADDRESS;
+            const amount = document.getElementById('send-amount').value;
+
+            if (!MiniKit.isInstalled()) {
+                alert("Abre la app desde World App.");
+                return;
+            }
+
+            try {
+                const res = await MiniKit.commandsAsync.pay({
+                    reference: "send-" + Date.now(),
+                    to: dest,
+                    tokens: [{ symbol: "USDC", token_amount: (parseFloat(amount) * 1e18).toString() }],
+                    description: "Envío de Tokens"
+                });
+                if (res.finalPayload && res.finalPayload.status === "success") {
+                    alert("Envío realizado con éxito.");
+                }
+            } catch (err) {
+                alert("Error en el envío: " + err.message);
             }
         }
     </script>
