@@ -1,7 +1,4 @@
-import zipfile
-import os
-
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -102,7 +99,6 @@ html_content = """<!DOCTYPE html>
         }
         .action-btn:hover { background: rgba(240, 185, 11, 0.2); }
 
-        /* Navigation Bar */
         .nav-bar {
             position: absolute;
             bottom: 0;
@@ -131,7 +127,6 @@ html_content = """<!DOCTYPE html>
         .nav-item.active { color: var(--accent-yellow); }
         .nav-item span { font-size: 18px; }
 
-        /* Form elements */
         .form-group { margin-bottom: 15px; }
         .form-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
         .form-control {
@@ -157,7 +152,6 @@ html_content = """<!DOCTYPE html>
             margin-top: 10px;
         }
 
-        /* Trading Chart Mock */
         .chart-box {
             height: 140px;
             background: #0b0e14;
@@ -320,13 +314,13 @@ html_content = """<!DOCTYPE html>
                 
                 let shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(38);
                 document.getElementById('walletStatus').innerHTML = `<b>${shortAddr}</b>`;
-                document.getElementById('connectBtninnerText = "Desconectar";
-                alert("¡Wallet conectada con éxito a World Chain!");
+                document.getElementById('connectBtn').innerText = "Desconectar";
+                alert("¡Wallet conectada con éxito a la Blockchain!");
             } catch (err) {
                 console.error(err);
             }
         } else {
-            alert("Por favor instala MetaMask o usa el navegador de World App.");
+            alert("Por favor instala MetaMask o abre el enlace desde el navegador de World App.");
         }
     }
 
@@ -335,8 +329,6 @@ html_content = """<!DOCTYPE html>
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         
         document.getElementById('view-' + tabId).classList.add('active');
-        
-        // Activar botón correspondiente
         event && event.currentTarget && event.currentTarget.classList.add('active');
     }
 
@@ -346,28 +338,21 @@ html_content = """<!DOCTYPE html>
             alert("Ingresa un monto válido para bloquear.");
             return;
         }
-        alert("¡Staking Iniciado en Bóveda Bitradex AI! Tus fondos generarán rendimientos diarios.");
+        alert("¡Staking Iniciado en Bóveda Bitradex AI! Fondos vinculados al contrato inteligente.");
     }
 
     function executeTrade(type) {
         let amt = document.getElementById('tradeAmount').value;
-        alert(`Operación de Trading [${type}] iniciada por $${amt}. Procesando contrato inteligente...`);
+        alert(`Operación de Trading [${type}] procesada por la red por un valor de $${amt}.`);
     }
 
     function executeSwap() {
-        alert("Ejecutando Swap descentralizado en red...");
+        alert("Ejecutando contrato de intercambio de tokens (Swap)...");
     }
 
     function executeSend() {
-        alert("Enviando fondos a la dirección de destino...");
+        alert("Transacción de envío generada para firmar en la wallet...");
     }
 </script>
 </body>
 </html>
-"""
-
-os.makedirs('/mnt/data', exist_ok=True)
-with open('/mnt/data/uno_intercambio_funcional.html', 'w', encoding='utf-8') as f:
-    f.write(html_content)
-
-print("Archivo generado exitosamente.")
