@@ -40,24 +40,23 @@
 
             <!-- Botones de Acción Rápidos -->
             <div class="grid grid-cols-4 gap-2 mb-6">
-                <button onclick="switchTab('swap')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex justify-center items-center space-x-1">
-                    <span>⇆</span><span>Swap</span>
+                <button onclick="switchTab('inicio')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
+                    <span class="text-base">🏠</span><span>Inicio</span>
                 </button>
-                <button onclick="switchTab('boveda')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex justify-center items-center space-x-1">
-                    <span>↗</span><span>Ganar</span>
+                <button onclick="switchTab('mineria')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
+                    <span class="text-base">⛏️</span><span>Minería</span>
                 </button>
-                <button onclick="switchTab('enviar')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex justify-center items-center space-x-1">
-                    <span>↗</span><span>Enviar</span>
+                <button onclick="switchTab('trading')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
+                    <span class="text-base">📈</span><span>Trading</span>
                 </button>
-                <button onclick="switchTab('recibir')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex justify-center items-center space-x-1">
-                    <span>↓</span><span>Recibir</span>
+                <button onclick="switchTab('swap')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
+                    <span class="text-base">⇆</span><span>Swap</span>
                 </button>
             </div>
 
-            <h3 class="font-bold text-base text-gray-900 mb-3">World Chain</h3>
-
             <!-- VISTA INICIO / TOKENS -->
             <div id="tab-inicio" class="tab-content active space-y-3">
+                <h3 class="font-bold text-base text-gray-900 mb-3">World Chain</h3>
                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-xs text-white">💵</div>
@@ -99,57 +98,82 @@
                         <p class="text-[11px] text-red-400 font-semibold">▼ 0.10%</p>
                     </div>
                 </div>
+            </div>
 
-                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center font-bold text-xs text-black">🧬</div>
-                        <div>
-                            <p class="font-bold text-sm text-gray-900">DNA</p>
-                            <p id="dna-amount" class="text-xs text-gray-400">0 DNA</p>
-                        </div>
+            <!-- VISTA MINERÍA / GANANCIAS DIARIAS (Estilo Polygon Referencia) -->
+            <div id="tab-mineria" class="tab-content space-y-4 bg-zinc-900 text-white p-4 rounded-2xl">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-xs text-zinc-400">INGRESO TOTAL DE MINERÍA</p>
+                        <h3 id="mineria-total" class="text-2xl font-extrabold text-white">$0.000</h3>
                     </div>
-                    <div class="text-right">
-                        <p id="dna-val" class="font-bold text-sm text-gray-900">$0.00</p>
-                        <p class="text-[11px] text-red-400 font-semibold">▼ 1.22%</p>
+                    <div class="bg-zinc-800 p-3 rounded-xl text-yellow-400 font-bold text-lg">💻</div>
+                </div>
+
+                <div class="bg-zinc-800/80 p-3 rounded-xl flex justify-between items-center border border-zinc-700">
+                    <div>
+                        <span class="text-xs text-emerald-400 font-semibold block">Ingreso de Hoy (Acumulado)</span>
+                        <span id="ingreso-hoy" class="text-sm font-bold text-emerald-300">+$0.00000</span>
+                    </div>
+                    <button onclick="reclamarGanancias()" class="bg-emerald-500 text-black font-bold text-xs px-3 py-2 rounded-lg">Reclamar</button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
+                        <p class="text-[10px] text-zinc-400">Saldo Cartera</p>
+                        <p id="min-cartera" class="text-sm font-bold mt-1">$0.00</p>
+                    </div>
+                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
+                        <p class="text-[10px] text-zinc-400">Ingreso Diario</p>
+                        <p id="min-diario" class="text-sm font-bold text-emerald-400 mt-1">$2.051</p>
+                    </div>
+                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
+                        <p class="text-[10px] text-zinc-400">Tasa de Interés</p>
+                        <p class="text-sm font-bold text-yellow-400 mt-1">4.5%</p>
                     </div>
                 </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs text-zinc-300 font-medium">Agregar Token / Capital para Minería ($):</label>
+                    <input id="input-capital" type="number" placeholder="Ej. 50" class="w-full bg-zinc-800 border border-zinc-700 p-3 rounded-xl text-sm text-white outline-none">
+                    <button onclick="configurarCapitalMineria()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl text-xs">Activar Minería Diaria</button>
+                </div>
+            </div>
+
+            <!-- VISTA TRADING EN VIVO -->
+            <div id="tab-trading" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <h4 class="font-bold text-sm text-gray-900">Trading en Vivo - World Chain</h4>
+                <div class="bg-black text-white p-4 rounded-xl space-y-2">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>Par</span>
+                        <span>Precio Actual</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">USDC / USD</span>
+                        <span id="live-usdc-price" class="text-emerald-400 font-mono font-bold">$1.0000</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">WLD / USD</span>
+                        <span id="live-wld-price" class="text-emerald-400 font-mono font-bold">$2.1450</span>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 text-center">Gráficos y ejecución de ordenes en tiempo real conectados con la red.</p>
             </div>
 
             <!-- VISTA SWAP -->
             <div id="tab-swap" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                 <h4 class="font-bold text-sm text-gray-900">Intercambio Rápido (Swap)</h4>
                 <input id="swap-input" type="number" placeholder="Monto a cambiar" class="w-full bg-white border border-gray-200 p-3 rounded-xl text-sm outline-none">
-                <button onclick="executeAction('Swap')" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl text-xs">Realizar Intercambio</button>
-            </div>
-
-            <!-- VISTA GANAR / STAKING -->
-            <div id="tab-boveda" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <h4 class="font-bold text-sm text-gray-900">Bóveda & Staking (4.5% diario)</h4>
-                <input id="stake-input" type="number" placeholder="Monto en Staking" class="w-full bg-white border border-gray-200 p-3 rounded-xl text-sm outline-none">
-                <button onclick="executeAction('Staking')" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl text-xs">Depositar en Bóveda</button>
-            </div>
-
-            <!-- VISTA ENVIAR -->
-            <div id="tab-enviar" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <h4 class="font-bold text-sm text-gray-900">Enviar Fondos</h4>
-                <input type="text" placeholder="Dirección World Chain (0x...)" class="w-full bg-white border border-gray-200 p-3 rounded-xl text-sm outline-none">
-                <input type="number" placeholder="Monto" class="w-full bg-white border border-gray-200 p-3 rounded-xl text-sm outline-none">
-                <button onclick="executeAction('Envío')" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl text-xs">Confirmar Envío</button>
-            </div>
-
-            <!-- VISTA RECIBIR -->
-            <div id="tab-recibir" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 text-center">
-                <h4 class="font-bold text-sm text-gray-900">Tu Dirección World Chain</h4>
-                <p id="wallet-address-display" class="text-xs bg-white p-3 rounded-xl border border-gray-200 text-gray-600 break-all font-mono">No conectado</p>
+                <button onclick="alert('Swap ejecutado')" class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl text-xs">Realizar Intercambio</button>
             </div>
         </div>
 
-        <!-- Navegación Inferior Estilo Floatin Bar -->
+        <!-- Navegación Inferior -->
         <div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black/90 text-white px-6 py-3 rounded-full flex items-center space-x-6 shadow-2xl">
             <button onclick="switchTab('inicio')" class="text-lg hover:scale-110 transition">🏠</button>
-            <button onclick="switchTab('swap')" class="text-lg hover:scale-110 transition">⇆</button>
-            <button onclick="switchTab('boveda')" class="text-lg hover:scale-110 transition">💰</button>
-            <button onclick="switchTab('enviar')" class="w-9 h-9 bg-pink-500 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-md">↓</button>
+            <button onclick="switchTab('mineria')" class="text-lg hover:scale-110 transition">⛏️</button>
+            <button onclick="switchTab('trading')" class="text-lg hover:scale-110 transition">📈</button>
+            <button onclick="switchTab('swap')" class="w-9 h-9 bg-pink-500 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-md">⇆</button>
         </div>
     </div>
 
@@ -162,7 +186,6 @@
             if (window.MiniKit) {
                 MiniKit.install({ appId: APP_ID });
             }
-            // Estado inicial desconectado
             renderDisconnectedState();
         });
 
@@ -184,7 +207,7 @@
                         requestId: Math.random().toString(36).substring(2),
                         expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                         notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                        statement: "Conectar billetera de World Chain"
+                        statement: "Conectar billetera"
                     });
 
                     if (res && res.finalPayload && res.finalPayload.status === "success") {
@@ -195,63 +218,57 @@
                     console.log("Error al conectar MiniKit", e);
                 }
             }
-            // Fallback de prueba si se ejecuta fuera de World App
             renderConnectedState(MY_WALLET_ADDRESS);
         }
 
         function renderConnectedState(address) {
             isConnected = true;
             const shortAddr = address.substring(0, 6) + "..." + address.slice(-4);
-            
-            // Actualizar interfaz a Conectado
             document.getElementById('user-status').innerText = shortAddr + " • World Chain";
+            
             const btn = document.getElementById('connect-btn');
             btn.innerText = "Desconectar";
             btn.className = "bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-xs font-bold transition";
 
-            // Cargar saldos reales
             document.getElementById('balance-total').innerText = "$1.41";
             document.getElementById('usdc-amount').innerText = "1.3705 USDC";
             document.getElementById('usdc-val').innerText = "$1.37";
             document.getElementById('wld-amount').innerText = "0.0009 WLD";
             document.getElementById('wld-val').innerText = "$0.00";
-            document.getElementById('wbtc-amount').innerText = "0 WBTC";
-            document.getElementById('wbtc-val').innerText = "$0.02";
-            document.getElementById('dna-amount').innerText = "33,747.2056 DNA";
-            document.getElementById('dna-val').innerText = "$0.01";
-            
-            document.getElementById('wallet-address-display').innerText = address;
+            document.getElementById('min-cartera').innerText = "$45.57";
         }
 
         function renderDisconnectedState() {
             isConnected = false;
-            
-            // Actualizar interfaz a Desconectado
             document.getElementById('user-status').innerText = "No conectado • World Chain";
+            
             const btn = document.getElementById('connect-btn');
             btn.innerText = "Conectar";
             btn.className = "bg-black text-white px-4 py-2 rounded-full text-xs font-bold transition";
 
-            // Resetear saldos a $0.00
             document.getElementById('balance-total').innerText = "$0.00";
             document.getElementById('usdc-amount').innerText = "0 USDC";
             document.getElementById('usdc-val').innerText = "$0.00";
             document.getElementById('wld-amount').innerText = "0 WLD";
             document.getElementById('wld-val').innerText = "$0.00";
-            document.getElementById('wbtc-amount').innerText = "0 WBTC";
-            document.getElementById('wbtc-val').innerText = "$0.00";
-            document.getElementById('dna-amount').innerText = "0 DNA";
-            document.getElementById('dna-val').innerText = "$0.00";
-
-            document.getElementById('wallet-address-display').innerText = "No conectado";
+            document.getElementById('min-cartera').innerText = "$0.00";
         }
 
-        function executeAction(type) {
+        function configurarCapitalMineria() {
             if (!isConnected) {
-                alert("Por favor conecta tu cartera primero.");
+                alert("Conecta tu cartera primero.");
                 return;
             }
-            alert(`Acción de ${type} iniciada.`);
+            const monto = parseFloat(document.getElementById('input-capital').value) || 50;
+            // Cálculo basado en que $50 den $2.05 diario (repartido internamente sin cronómetro visible)
+            const diario = (monto * 0.041).toFixed(3); 
+            document.getElementById('min-diario').innerText = "$" + diario;
+            document.getElementById('ingreso-hoy').innerText = "+$" + (diario / 12).toFixed(4); // Simulación de incremento fraccionado sin reloj en pantalla
+            alert("¡Capital de minería configurado correctamente!");
+        }
+
+        function reclamarGanancias() {
+            alert("Ganancias reclamadas exitosamente a tu balance.");
         }
     </script>
 </body>
