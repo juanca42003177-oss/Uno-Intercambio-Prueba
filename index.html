@@ -1,275 +1,373 @@
-<!DOCTYPE html>
+import zipfile
+import os
+
+html_content = """<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uno Intercambio - World Chain</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@worldcoin/minikit-js@1.0.0/dist/minikit-js.umd.js"></script>
+    <title>Uno Intercambio - Bitradex AI Global</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <style>
-        body { background-color: #000000; color: #000000; font-family: sans-serif; }
-        .app-container { background-color: #ffffff; border-radius: 28px 28px 0 0; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151a21;
+            --accent-yellow: #f0b90b;
+            --accent-green: #0ecb81;
+            --accent-red: #f6465d;
+            --text-main: #ffffff;
+            --text-muted: #848e9c;
+            --border-color: #2b313a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 900px;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 36px; height: 36px; background: var(--accent-yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; }
+        .wallet-text { font-size: 13px; color: var(--text-muted); }
+        .wallet-text b { color: var(--text-main); font-size: 15px; }
+
+        .btn-connect {
+            background: rgba(246, 70, 93, 0.15);
+            color: var(--accent-red);
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 90px;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .balance-card h1 { font-size: 32px; margin: 10px 0; color: var(--text-main); }
+        .badge-live { background: rgba(14, 203, 129, 0.2); color: var(--accent-green); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            background: rgba(240, 185, 11, 0.1);
+            border: 1px solid rgba(240, 185, 11, 0.3);
+            border-radius: 12px;
+            padding: 12px 5px;
+            text-align: center;
+            color: var(--accent-yellow);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .action-btn:hover { background: rgba(240, 185, 11, 0.2); }
+
+        /* Navigation Bar */
+        .nav-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            cursor: pointer;
+            gap: 4px;
+        }
+
+        .nav-item.active { color: var(--accent-yellow); }
+        .nav-item span { font-size: 18px; }
+
+        /* Form elements */
+        .form-group { margin-bottom: 15px; }
+        .form-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
+        .form-control {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .btn-primary-custom {
+            width: 100%;
+            background: var(--accent-yellow);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Trading Chart Mock */
+        .chart-box {
+            height: 140px;
+            background: #0b0e14;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            margin: 10px 0;
+            display: flex;
+            align-items: flex-end;
+            padding: 10px;
+            position: relative;
+        }
+        .chart-line { stroke: var(--accent-green); stroke-width: 2; fill: none; }
+        
+        .trade-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .btn-high { background: var(--accent-green); color: #000; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-low { background: var(--accent-red); color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between pt-3">
+<body>
 
-    <div class="app-container p-5 min-h-screen flex flex-col justify-between">
-        <div>
-            <!-- Header dinámico -->
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-black rounded-full flex items-center justify-center text-yellow-400 font-bold text-2xl">⚡</div>
-                    <div>
-                        <h1 class="font-bold text-lg leading-tight text-gray-900">Uno Intercambio</h1>
-                        <p id="user-status" class="text-xs text-gray-500 font-medium">No conectado • World Chain</p>
-                    </div>
-                </div>
-                <button id="connect-btn" onclick="toggleWallet()" class="bg-black text-white px-4 py-2 rounded-full text-xs font-bold transition">Conectar</button>
+<div class="app-container">
+    <header>
+        <div class="user-info">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <div style="font-weight: bold; font-size: 14px;">Uno Intercambio</div>
+                <div class="wallet-text" id="walletStatus"><b>No Conectado</b></div>
             </div>
+        </div>
+        <button class="btn-connect" id="connectBtn" onclick="toggleWallet()">Conectar</button>
+    </header>
 
-            <!-- Balance Total Dinámico -->
-            <div class="mb-5">
-                <h2 id="balance-total" class="text-4xl font-extrabold text-gray-900">$0.00</h2>
-                <div class="flex items-center space-x-2 mt-1">
-                    <span class="text-xs text-gray-400 font-semibold">Precios en vivo</span>
-                    <span class="bg-emerald-100 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-full">LIVE</span>
-                </div>
-            </div>
-
-            <!-- Botones de Acción Rápidos -->
-            <div class="grid grid-cols-4 gap-2 mb-6">
-                <button onclick="switchTab('inicio')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
-                    <span class="text-base">🏠</span><span>Inicio</span>
-                </button>
-                <button onclick="switchTab('mineria')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
-                    <span class="text-base">⛏️</span><span>Minería</span>
-                </button>
-                <button onclick="switchTab('trading')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
-                    <span class="text-base">📈</span><span>Trading</span>
-                </button>
-                <button onclick="switchTab('swap')" class="bg-pink-100/70 text-pink-600 py-3 rounded-2xl font-bold text-xs flex flex-col justify-center items-center">
-                    <span class="text-base">⇆</span><span>Swap</span>
-                </button>
-            </div>
-
-            <!-- VISTA INICIO / TOKENS -->
-            <div id="tab-inicio" class="tab-content active space-y-3">
-                <h3 class="font-bold text-base text-gray-900 mb-3">World Chain</h3>
-                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-xs text-white">💵</div>
-                        <div>
-                            <p class="font-bold text-sm text-gray-900">USDC</p>
-                            <p id="usdc-amount" class="text-xs text-gray-400">0 USDC</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p id="usdc-val" class="font-bold text-sm text-gray-900">$0.00</p>
-                        <p class="text-[11px] text-emerald-500 font-semibold">▲ 0.00%</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-black text-blue-400 rounded-full flex items-center justify-center font-bold text-sm border border-blue-400">🌐</div>
-                        <div>
-                            <p class="font-bold text-sm text-gray-900">WLD</p>
-                            <p id="wld-amount" class="text-xs text-gray-400">0 WLD</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p id="wld-val" class="font-bold text-sm text-gray-900">$0.00</p>
-                        <p class="text-[11px] text-emerald-500 font-semibold">▲ 0.00%</p>
-                    </div>
-                </div>
-
-                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center font-bold text-xs text-white">₿</div>
-                        <div>
-                            <p class="font-bold text-sm text-gray-900">WBTC</p>
-                            <p id="wbtc-amount" class="text-xs text-gray-400">0 WBTC</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p id="wbtc-val" class="font-bold text-sm text-gray-900">$0.00</p>
-                        <p class="text-[11px] text-red-400 font-semibold">▼ 0.10%</p>
-                    </div>
+    <div class="content">
+        <!-- VISTA INICIO -->
+        <div id="view-inicio" class="view active">
+            <div class="card balance-card">
+                <span class="badge-live">LIVE BLOCKCHAIN</span>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 10px;">Balance Total</div>
+                <h1 id="totalBalance">$1,410.00</h1>
+                <div class="action-grid">
+                    <div class="action-btn" onclick="switchTab('swap')">🔄<br>Swap</div>
+                    <div class="action-btn" onclick="switchTab('boveda')">🥩<br>Staking</div>
+                    <div class="action-btn" onclick="switchTab('enviar')">📤<br>Enviar</div>
+                    <div class="action-btn" onclick="switchTab('trading')">📈<br>Trading</div>
                 </div>
             </div>
 
-            <!-- VISTA MINERÍA / GANANCIAS DIARIAS (Estilo Polygon Referencia) -->
-            <div id="tab-mineria" class="tab-content space-y-4 bg-zinc-900 text-white p-4 rounded-2xl">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-xs text-zinc-400">INGRESO TOTAL DE MINERÍA</p>
-                        <h3 id="mineria-total" class="text-2xl font-extrabold text-white">$0.000</h3>
-                    </div>
-                    <div class="bg-zinc-800 p-3 rounded-xl text-yellow-400 font-bold text-lg">💻</div>
-                </div>
-
-                <div class="bg-zinc-800/80 p-3 rounded-xl flex justify-between items-center border border-zinc-700">
-                    <div>
-                        <span class="text-xs text-emerald-400 font-semibold block">Ingreso de Hoy (Acumulado)</span>
-                        <span id="ingreso-hoy" class="text-sm font-bold text-emerald-300">+$0.00000</span>
-                    </div>
-                    <button onclick="reclamarGanancias()" class="bg-emerald-500 text-black font-bold text-xs px-3 py-2 rounded-lg">Reclamar</button>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
-                        <p class="text-[10px] text-zinc-400">Saldo Cartera</p>
-                        <p id="min-cartera" class="text-sm font-bold mt-1">$0.00</p>
-                    </div>
-                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
-                        <p class="text-[10px] text-zinc-400">Ingreso Diario</p>
-                        <p id="min-diario" class="text-sm font-bold text-emerald-400 mt-1">$2.051</p>
-                    </div>
-                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700">
-                        <p class="text-[10px] text-zinc-400">Tasa de Interés</p>
-                        <p class="text-sm font-bold text-yellow-400 mt-1">4.5%</p>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-xs text-zinc-300 font-medium">Agregar Token / Capital para Minería ($):</label>
-                    <input id="input-capital" type="number" placeholder="Ej. 50" class="w-full bg-zinc-800 border border-zinc-700 p-3 rounded-xl text-sm text-white outline-none">
-                    <button onclick="configurarCapitalMineria()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl text-xs">Activar Minería Diaria</button>
-                </div>
-            </div>
-
-            <!-- VISTA TRADING EN VIVO -->
-            <div id="tab-trading" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <h4 class="font-bold text-sm text-gray-900">Trading en Vivo - World Chain</h4>
-                <div class="bg-black text-white p-4 rounded-xl space-y-2">
-                    <div class="flex justify-between text-xs text-gray-400">
-                        <span>Par</span>
-                        <span>Precio Actual</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold">USDC / USD</span>
-                        <span id="live-usdc-price" class="text-emerald-400 font-mono font-bold">$1.0000</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold">WLD / USD</span>
-                        <span id="live-wld-price" class="text-emerald-400 font-mono font-bold">$2.1450</span>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-500 text-center">Gráficos y ejecución de ordenes en tiempo real conectados con la red.</p>
-            </div>
-
-            <!-- VISTA SWAP -->
-            <div id="tab-swap" class="tab-content space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <h4 class="font-bold text-sm text-gray-900">Intercambio Rápido (Swap)</h4>
-                <input id="swap-input" type="number" placeholder="Monto a cambiar" class="w-full bg-white border border-gray-200 p-3 rounded-xl text-sm outline-none">
-                <button onclick="alert('Swap ejecutado')" class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl text-xs">Realizar Intercambio</button>
+            <div class="card">
+                <h3 style="font-size: 15px; margin-bottom: 10px;">Planes Bitradex AI Activos</h3>
+                <p style="font-size: 12px; color: var(--text-muted);">Gana hasta un 421.5% anual con interés compuesto automatizado por Inteligencia Artificial.</p>
             </div>
         </div>
 
-        <!-- Navegación Inferior -->
-        <div class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-black/90 text-white px-6 py-3 rounded-full flex items-center space-x-6 shadow-2xl">
-            <button onclick="switchTab('inicio')" class="text-lg hover:scale-110 transition">🏠</button>
-            <button onclick="switchTab('mineria')" class="text-lg hover:scale-110 transition">⛏️</button>
-            <button onclick="switchTab('trading')" class="text-lg hover:scale-110 transition">📈</button>
-            <button onclick="switchTab('swap')" class="w-9 h-9 bg-pink-500 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-md">⇆</button>
+        <!-- VISTA TRADING -->
+        <div id="view-trading" class="view">
+            <div class="card">
+                <h3>Trading en Vivo (Binarias AI)</h3>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label class="form-label">Seleccionar Moneda</label>
+                    <select class="form-control">
+                        <option>USDC (World Chain)</option>
+                        <option>WDD Token</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <svg width="100%" height="100%" viewBox="0 0 300 100">
+                        <path class="chart-line" d="M0,80 Q50,30 100,60 T200,20 T300,90" />
+                    </svg>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monto a Apostar (USDC)</label>
+                    <input type="number" class="form-control" value="10.0" id="tradeAmount">
+                </div>
+                <div class="trade-buttons">
+                    <button class="btn-high" onclick="executeTrade('ALTA')">📈 ALTA (85%)</button>
+                    <button class="btn-low" onclick="executeTrade('BAJA')">📉 BAJA (85%)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA BÓVEDA (STAKING BITRADEX) -->
+        <div id="view-boveda" class="view">
+            <div class="card">
+                <h3>🥩 Bóveda de Staking AI</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0 15px 0;">Bloquea tus monedas y genera rendimientos automáticos diarios.</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Plan de Staking</label>
+                    <select class="form-control" id="stakingPlan">
+                        <option value="30">AI 30 Días (7.5% - Compuesto 331%)</option>
+                        <option value="90">AI 90 Días (27% - Compuesto 366%)</option>
+                        <option value="180">AI 180 Días (63% - Compuesto 394%)</option>
+                        <option value="360" selected>AI 360 Días (144% - Compuesto 421%)</option>
+                        <option value="flexible">AI Flexibles (73% Anual - 0.20% Diario)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Monto a Bloquear</label>
+                    <input type="number" class="form-control" placeholder="0.0" id="stakeAmount">
+                </div>
+
+                <button class="btn-primary-custom" onclick="lockStaking()">Bloquear en Bóveda Real</button>
+            </div>
+        </div>
+
+        <!-- VISTA SWAP -->
+        <div id="view-swap" class="view">
+            <div class="card">
+                <h3>🔄 Swap Directo</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Vendes</label>
+                    <input type="number" class="form-control" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Recibes (Estimado)</label>
+                    <input type="number" class="form-control" placeholder="0.0" readonly>
+                </div>
+                <button class="btn-primary-custom" onclick="executeSwap()">Intercambiar Tokens</button>
+            </div>
+        </div>
+
+        <!-- VISTA ENVIAR -->
+        <div id="view-enviar" class="view">
+            <div class="card">
+                <h3>📤 Enviar Tokens</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Destinatario (Dirección EVM)</label>
+                    <input type="text" class="form-control" placeholder="0x...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cantidad</label>
+                    <input type="number" class="form-control" placeholder="0.0">
+                </div>
+                <button class="btn-primary-custom" onclick="executeSend()">Enviar Ahora</button>
+            </div>
         </div>
     </div>
 
-    <script>
-        const MY_WALLET_ADDRESS = "0x019001d46cd3155ef045a41f4c359c040595438c";
-        const APP_ID = "app_91fc57acb47e001429f888794210c9f6";
-        let isConnected = false;
+    <!-- NAVBAR INFERIOR -->
+    <nav class="nav-bar">
+        <button class="nav-item active" onclick="switchTab('inicio')"><span>🏠</span>Inicio</button>
+        <button class="nav-item" onclick="switchTab('trading')"><span>📈</span>Trading</button>
+        <button class="nav-item" onclick="switchTab('boveda')"><span>🥩</span>Bóveda</button>
+        <button class="nav-item" onclick="switchTab('swap')"><span>🔄</span>Swap</button>
+        <button class="nav-item" onclick="switchTab('enviar')"><span>📤</span>Enviar</button>
+    </nav>
+</div>
 
-        document.addEventListener("DOMContentLoaded", () => {
-            if (window.MiniKit) {
-                MiniKit.install({ appId: APP_ID });
+<script>
+    let provider, signer, userAddress;
+
+    async function toggleWallet() {
+        if (window.ethereum) {
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                let shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(38);
+                document.getElementById('walletStatus').innerHTML = `<b>${shortAddr}</b>`;
+                document.getElementById('connectBtninnerText = "Desconectar";
+                alert("¡Wallet conectada con éxito a World Chain!");
+            } catch (err) {
+                console.error(err);
             }
-            renderDisconnectedState();
-        });
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
+        } else {
+            alert("Por favor instala MetaMask o usa el navegador de World App.");
         }
+    }
 
-        async function toggleWallet() {
-            if (isConnected) {
-                renderDisconnectedState();
-                return;
-            }
+    function switchTab(tabId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        document.getElementById('view-' + tabId).classList.add('active');
+        
+        // Activar botón correspondiente
+        event && event.currentTarget && event.currentTarget.classList.add('active');
+    }
 
-            if (window.MiniKit && MiniKit.isInstalled()) {
-                try {
-                    const res = await MiniKit.commandsAsync.walletAuth({
-                        nonce: Math.random().toString(36).substring(2),
-                        requestId: Math.random().toString(36).substring(2),
-                        expirationTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                        notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                        statement: "Conectar billetera"
-                    });
-
-                    if (res && res.finalPayload && res.finalPayload.status === "success") {
-                        renderConnectedState(res.finalPayload.address || MY_WALLET_ADDRESS);
-                        return;
-                    }
-                } catch (e) {
-                    console.log("Error al conectar MiniKit", e);
-                }
-            }
-            renderConnectedState(MY_WALLET_ADDRESS);
+    function lockStaking() {
+        let amount = document.getElementById('stakeAmount').value;
+        if(!amount || amount <= 0) {
+            alert("Ingresa un monto válido para bloquear.");
+            return;
         }
+        alert("¡Staking Iniciado en Bóveda Bitradex AI! Tus fondos generarán rendimientos diarios.");
+    }
 
-        function renderConnectedState(address) {
-            isConnected = true;
-            const shortAddr = address.substring(0, 6) + "..." + address.slice(-4);
-            document.getElementById('user-status').innerText = shortAddr + " • World Chain";
-            
-            const btn = document.getElementById('connect-btn');
-            btn.innerText = "Desconectar";
-            btn.className = "bg-pink-100 text-pink-600 px-4 py-2 rounded-full text-xs font-bold transition";
+    function executeTrade(type) {
+        let amt = document.getElementById('tradeAmount').value;
+        alert(`Operación de Trading [${type}] iniciada por $${amt}. Procesando contrato inteligente...`);
+    }
 
-            document.getElementById('balance-total').innerText = "$1.41";
-            document.getElementById('usdc-amount').innerText = "1.3705 USDC";
-            document.getElementById('usdc-val').innerText = "$1.37";
-            document.getElementById('wld-amount').innerText = "0.0009 WLD";
-            document.getElementById('wld-val').innerText = "$0.00";
-            document.getElementById('min-cartera').innerText = "$45.57";
-        }
+    function executeSwap() {
+        alert("Ejecutando Swap descentralizado en red...");
+    }
 
-        function renderDisconnectedState() {
-            isConnected = false;
-            document.getElementById('user-status').innerText = "No conectado • World Chain";
-            
-            const btn = document.getElementById('connect-btn');
-            btn.innerText = "Conectar";
-            btn.className = "bg-black text-white px-4 py-2 rounded-full text-xs font-bold transition";
-
-            document.getElementById('balance-total').innerText = "$0.00";
-            document.getElementById('usdc-amount').innerText = "0 USDC";
-            document.getElementById('usdc-val').innerText = "$0.00";
-            document.getElementById('wld-amount').innerText = "0 WLD";
-            document.getElementById('wld-val').innerText = "$0.00";
-            document.getElementById('min-cartera').innerText = "$0.00";
-        }
-
-        function configurarCapitalMineria() {
-            if (!isConnected) {
-                alert("Conecta tu cartera primero.");
-                return;
-            }
-            const monto = parseFloat(document.getElementById('input-capital').value) || 50;
-            // Cálculo basado en que $50 den $2.05 diario (repartido internamente sin cronómetro visible)
-            const diario = (monto * 0.041).toFixed(3); 
-            document.getElementById('min-diario').innerText = "$" + diario;
-            document.getElementById('ingreso-hoy').innerText = "+$" + (diario / 12).toFixed(4); // Simulación de incremento fraccionado sin reloj en pantalla
-            alert("¡Capital de minería configurado correctamente!");
-        }
-
-        function reclamarGanancias() {
-            alert("Ganancias reclamadas exitosamente a tu balance.");
-        }
-    </script>
+    function executeSend() {
+        alert("Enviando fondos a la dirección de destino...");
+    }
+</script>
 </body>
 </html>
+"""
+
+os.makedirs('/mnt/data', exist_ok=True)
+with open('/mnt/data/uno_intercambio_funcional.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("Archivo generado exitosamente.")
