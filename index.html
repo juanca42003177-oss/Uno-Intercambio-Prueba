@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uno Intercambio - Bitradex AI Global</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151a21;
+            --accent-yellow: #f0b90b;
+            --accent-green: #0ecb81;
+            --accent-red: #f6465d;
+            --text-main: #ffffff;
+            --text-muted: #848e9c;
+            --border-color: #2b313a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        
+        .app-container {
+            width: 100%;
+            max-width: 430px;
+            height: 100vh;
+            max-height: 900px;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 36px; height: 36px; background: var(--accent-yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000; }
+        .wallet-text { font-size: 13px; color: var(--text-muted); }
+        .wallet-text b { color: var(--text-main); font-size: 15px; }
+
+        .btn-connect {
+            background: rgba(246, 70, 93, 0.15);
+            color: var(--accent-red);
+            border: none;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 90px;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .balance-card h1 { font-size: 32px; margin: 10px 0; color: var(--text-main); }
+        .badge-live { background: rgba(14, 203, 129, 0.2); color: var(--accent-green); padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            background: rgba(240, 185, 11, 0.1);
+            border: 1px solid rgba(240, 185, 11, 0.3);
+            border-radius: 12px;
+            padding: 12px 5px;
+            text-align: center;
+            color: var(--accent-yellow);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .action-btn:hover { background: rgba(240, 185, 11, 0.2); }
+
+        .nav-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            cursor: pointer;
+            gap: 4px;
+        }
+
+        .nav-item.active { color: var(--accent-yellow); }
+        .nav-item span { font-size: 18px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
+        .form-control {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .btn-primary-custom {
+            width: 100%;
+            background: var(--accent-yellow);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .chart-box {
+            height: 140px;
+            background: #0b0e14;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            margin: 10px 0;
+            display: flex;
+            align-items: flex-end;
+            padding: 10px;
+            position: relative;
+        }
+        .chart-line { stroke: var(--accent-green); stroke-width: 2; fill: none; }
+        
+        .trade-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .btn-high { background: var(--accent-green); color: #000; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-low { background: var(--accent-red); color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div class="user-info">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <div style="font-weight: bold; font-size: 14px;">Uno Intercambio</div>
+                <div class="wallet-text" id="walletStatus"><b>No Conectado</b></div>
+            </div>
+        </div>
+        <button class="btn-connect" id="connectBtn" onclick="toggleWallet()">Conectar</button>
+    </header>
+
+    <div class="content">
+        <!-- VISTA INICIO -->
+        <div id="view-inicio" class="view active">
+            <div class="card balance-card">
+                <span class="badge-live">LIVE BLOCKCHAIN</span>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 10px;">Balance Total</div>
+                <h1 id="totalBalance">$1,410.00</h1>
+                <div class="action-grid">
+                    <div class="action-btn" onclick="switchTab('swap')">🔄<br>Swap</div>
+                    <div class="action-btn" onclick="switchTab('boveda')">🥩<br>Staking</div>
+                    <div class="action-btn" onclick="switchTab('enviar')">📤<br>Enviar</div>
+                    <div class="action-btn" onclick="switchTab('trading')">📈<br>Trading</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 15px; margin-bottom: 10px;">Planes Bitradex AI Activos</h3>
+                <p style="font-size: 12px; color: var(--text-muted);">Gana hasta un 421.5% anual con interés compuesto automatizado por Inteligencia Artificial.</p>
+            </div>
+        </div>
+
+        <!-- VISTA TRADING -->
+        <div id="view-trading" class="view">
+            <div class="card">
+                <h3>Trading en Vivo (Binarias AI)</h3>
+                <div class="form-group" style="margin-top: 10px;">
+                    <label class="form-label">Seleccionar Moneda</label>
+                    <select class="form-control">
+                        <option>USDC (World Chain)</option>
+                        <option>WDD Token</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <svg width="100%" height="100%" viewBox="0 0 300 100">
+                        <path class="chart-line" d="M0,80 Q50,30 100,60 T200,20 T300,90" />
+                    </svg>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Monto a Apostar (USDC)</label>
+                    <input type="number" class="form-control" value="10.0" id="tradeAmount">
+                </div>
+                <div class="trade-buttons">
+                    <button class="btn-high" onclick="executeTrade('ALTA')">📈 ALTA (85%)</button>
+                    <button class="btn-low" onclick="executeTrade('BAJA')">📉 BAJA (85%)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA BÓVEDA (STAKING BITRADEX) -->
+        <div id="view-boveda" class="view">
+            <div class="card">
+                <h3>🥩 Bóveda de Staking AI</h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0 15px 0;">Bloquea tus monedas y genera rendimientos automáticos diarios.</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Plan de Staking</label>
+                    <select class="form-control" id="stakingPlan">
+                        <option value="30">AI 30 Días (7.5% - Compuesto 331%)</option>
+                        <option value="90">AI 90 Días (27% - Compuesto 366%)</option>
+                        <option value="180">AI 180 Días (63% - Compuesto 394%)</option>
+                        <option value="360" selected>AI 360 Días (144% - Compuesto 421%)</option>
+                        <option value="flexible">AI Flexibles (73% Anual - 0.20% Diario)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Monto a Bloquear</label>
+                    <input type="number" class="form-control" placeholder="0.0" id="stakeAmount">
+                </div>
+
+                <button class="btn-primary-custom" onclick="lockStaking()">Bloquear en Bóveda Real</button>
+            </div>
+        </div>
+
+        <!-- VISTA SWAP -->
+        <div id="view-swap" class="view">
+            <div class="card">
+                <h3>🔄 Swap Directo</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Vendes</label>
+                    <input type="number" class="form-control" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Recibes (Estimado)</label>
+                    <input type="number" class="form-control" placeholder="0.0" readonly>
+                </div>
+                <button class="btn-primary-custom" onclick="executeSwap()">Intercambiar Tokens</button>
+            </div>
+        </div>
+
+        <!-- VISTA ENVIAR -->
+        <div id="view-enviar" class="view">
+            <div class="card">
+                <h3>📤 Enviar Tokens</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label class="form-label">Destinatario (Dirección EVM)</label>
+                    <input type="text" class="form-control" placeholder="0x...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cantidad</label>
+                    <input type="number" class="form-control" placeholder="0.0">
+                </div>
+                <button class="btn-primary-custom" onclick="executeSend()">Enviar Ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVBAR INFERIOR -->
+    <nav class="nav-bar">
+        <button class="nav-item active" onclick="switchTab('inicio')"><span>🏠</span>Inicio</button>
+        <button class="nav-item" onclick="switchTab('trading')"><span>📈</span>Trading</button>
+        <button class="nav-item" onclick="switchTab('boveda')"><span>🥩</span>Bóveda</button>
+        <button class="nav-item" onclick="switchTab('swap')"><span>🔄</span>Swap</button>
+        <button class="nav-item" onclick="switchTab('enviar')"><span>📤</span>Enviar</button>
+    </nav>
+</div>
+
+<script>
+    let provider, signer, userAddress;
+
+    async function toggleWallet() {
+        if (window.ethereum) {
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                
+                let shortAddr = userAddress.substring(0, 6) + "..." + userAddress.substring(38);
+                document.getElementById('walletStatus').innerHTML = `<b>${shortAddr}</b>`;
+                document.getElementById('connectBtn').innerText = "Desconectar";
+                alert("¡Wallet conectada con éxito a la Blockchain!");
+            } catch (err) {
+                console.error(err);
+            }
+        } else {
+            alert("Por favor instala MetaMask o abre el enlace desde el navegador de World App.");
+        }
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        
+        document.getElementById('view-' + tabId).classList.add('active');
+        event && event.currentTarget && event.currentTarget.classList.add('active');
+    }
+
+    function lockStaking() {
+        let amount = document.getElementById('stakeAmount').value;
+        if(!amount || amount <= 0) {
+            alert("Ingresa un monto válido para bloquear.");
+            return;
+        }
+        alert("¡Staking Iniciado en Bóveda Bitradex AI! Fondos vinculados al contrato inteligente.");
+    }
+
+    function executeTrade(type) {
+        let amt = document.getElementById('tradeAmount').value;
+        alert(`Operación de Trading [${type}] procesada por la red por un valor de $${amt}.`);
+    }
+
+    function executeSwap() {
+        alert("Ejecutando contrato de intercambio de tokens (Swap)...");
+    }
+
+    function executeSend() {
+        alert("Transacción de envío generada para firmar en la wallet...");
+    }
+</script>
+</body>
+  </html>
