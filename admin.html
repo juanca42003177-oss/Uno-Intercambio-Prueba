@@ -77,7 +77,7 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   </select>
   <div id="pCustomBox" style="display:none">
     <label>Nombre del mercado</label>
-    <input id="pLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min">
+    <input id="pLabel" type="text" placeholder="Ej: WLD sube o baja - 10 min">
     <label>Duración de apuestas (minutos)</label>
     <input id="pBetMin" type="number" value="10">
     <label>Minutos extra hasta resolver (después de cerrar apuestas)</label>
@@ -278,7 +278,7 @@ async function createMarkets4(){
   var now = Math.floor(Date.now()/1000);
   var ok = 0;
   for (var i = 0; i < syms.length; i++){
-    var label = syms[i] + ' sube o baja — ' + p.name;
+    var label = syms[i] + ' sube o baja - ' + p.name;
     var betDeadline = now + p.betMin*60;
     var resolveAt = betDeadline + p.extraMin*60;
     predictStatus('Mercado ' + (i+1) + ' de 4 (' + syms[i] + '): acepta la transacción en tu wallet...');
@@ -320,7 +320,7 @@ async function createMarket(){
     } else {
       var p = P_DURATIONS[mode];
       var sym = document.getElementById('pToken').value.trim().toUpperCase() || 'WLD';
-      label = sym + ' sube o baja — ' + p.name;
+      label = sym + ' sube o baja - ' + p.name;
       betMin = p.betMin;
       resolveMin = p.extraMin;
     }
