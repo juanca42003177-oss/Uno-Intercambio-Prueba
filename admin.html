@@ -49,6 +49,8 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   <label>Precio del token ahora: <span id="tokPrice">—</span> (lo trae el servidor de precios)</label>
   <label>Mínimo en dólares (USD)</label>
   <input id="usdInput" type="number" value="15" step="0.5" oninput="previewMin()">
+  <label>O directo en tokens (ignora el USD)</label>
+  <input id="tokInput" type="number" placeholder="ej: 1000 (vacío = usar USD)" oninput="previewMin()">
   <div class="status" id="preview" style="margin-top:8px"></div>
   <button onclick="setMin()">💾 Actualizar mínimo</button>
 </div>
@@ -167,10 +169,16 @@ async function loadPrices(){
 
 function previewMin(){
   var v = curVault();
-  var price = v ? (prices[v.sym] || 0) : 0;
-  var usd = parseFloat(document.getElementById('usdInput').value);
   var el = document.getElementById('preview');
-  if(!usd || !price || !v){ el.textContent = ''; return; }
+  if(!v){ el.textContent = ''; return; }
+  var tokDirect = parseFloat(document.getElementById('tokInput').value);
+  if(tokDirect && tokDirect > 0){
+    el.innerHTML = 'Se pondrá el mínimo directo en <b>' + tokDirect.toLocaleString('es') + ' ' + v.sym + '</b>';
+    return;
+  }
+  var price = prices[v.sym] || 0;
+  var usd = parseFloat(document.getElementById('usdInput').value);
+  if(!usd || !price){ el.textContent = ''; return; }
   var tok = usd / price;
   el.innerHTML = 'Equivale a <b>' + tok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + v.sym + '</b>';
 }
@@ -179,17 +187,23 @@ async function setMin(){
   var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
   try{
     var v = curVault();
-    var usd = parseFloat(document.getElementById('usdInput').value);
-    var price = v ? (prices[v.sym] || 0) : 0;
-    if(!usd || usd <= 0){ setStatus('<span class="err">Escribe un monto válido.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
-    if(!price){ setStatus('<span class="err">No hay precio de ' + (v ? v.sym : '') + ' ahora. Intenta de nuevo.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
-    var tok = usd / price;
+    var tokDirect = parseFloat(document.getElementById('tokInput').value);
+    var tok, esDirecto = false;
+    if(tokDirect && tokDirect > 0){
+      tok = tokDirect; esDirecto = true;
+    } else {
+      var usd = parseFloat(document.getElementById('usdInput').value);
+      var price = v ? (prices[v.sym] || 0) : 0;
+      if(!usd || usd <= 0){ setStatus('<span class="err">Escribe un monto válido.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
+      if(!price){ setStatus('<span class="err">No hay precio de ' + (v ? v.sym : '') + ' ahora. Intenta de nuevo.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
+      tok = usd / price;
+    }
     var raw = ethers.utils.parseEther(tok.toFixed(18).toString());
     setStatus('Acepta la transacción en tu wallet...');
     var tx = await vault.setMinDeposit(raw);
     setStatus('Esperando confirmación de la red...');
     await tx.wait();
-    setStatus('<span class="ok">✅ Mínimo de ' + v.name + ' actualizado a ~$' + usd + ' (' + tok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + v.sym + ').</span>');
+    setStatus('<span class="ok">✅ Mínimo de ' + v.name + ' actualizado a ' + tok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + v.sym + (esDirecto ? ' (directo).' : ' (~$' + usd + ').') + '</span>');
     await refreshAll();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
   btn.disabled=false; btn.textContent='💾 Actualizar mínimo';
