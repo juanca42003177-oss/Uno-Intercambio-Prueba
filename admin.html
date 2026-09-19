@@ -84,6 +84,7 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
     <input id="pResolveMin" type="number" value="5">
   </div>
   <button onclick="createMarket()">➕ Crear mercado</button>
+  <button class="sec" onclick="createMarkets4()">🚀 Crear WLD + WBTC + ETH + CHAD (4 seguidos)</button>
 
   <label style="margin-top:16px">Mínimo de apuesta actual: <b id="curMinBet">—</b> USDC</label>
   <input id="minBetInput" type="number" placeholder="Nuevo mínimo en USDC" step="0.5">
@@ -267,6 +268,33 @@ async function togglePause(){
 }
 
 function predictStatus(html){ document.getElementById('predictStatus').innerHTML = html; }
+
+async function createMarkets4(){
+  var btn = event.target; btn.disabled=true;
+  var mode = document.getElementById('pDuration').value;
+  if (mode === 'custom'){ predictStatus('<span class="err">Elige una duración fija (no personalizada) para el botón de 4.</span>'); btn.disabled=false; return; }
+  var p = P_DURATIONS[mode];
+  var syms = ['WLD','WBTC','ETH','CHAD'];
+  var now = Math.floor(Date.now()/1000);
+  var ok = 0;
+  for (var i = 0; i < syms.length; i++){
+    var label = syms[i] + ' sube o baja — ' + p.name;
+    var betDeadline = now + p.betMin*60;
+    var resolveAt = betDeadline + p.extraMin*60;
+    predictStatus('Mercado ' + (i+1) + ' de 4 (' + syms[i] + '): acepta la transacción en tu wallet...');
+    try{
+      var tx = await predictContract.createMarket(label, betDeadline, resolveAt);
+      predictStatus('Mercado ' + (i+1) + ' de 4 (' + syms[i] + '): esperando red...');
+      await tx.wait();
+      ok++;
+    }catch(e){
+      predictStatus('<span class="err">Se detuvo en ' + syms[i] + ': ' + esc(e.message||String(e)) + '</span>');
+      break;
+    }
+  }
+  if (ok > 0){ predictStatus('<span class="ok">✅ ' + ok + ' de 4 mercados creados (' + esc(p.name) + ').</span>'); await refreshMarkets(); }
+  btn.disabled=false;
+}
 
 var P_DURATIONS = {
   fast:  { betMin: 10,   extraMin: 5,  name: '10 min' },
