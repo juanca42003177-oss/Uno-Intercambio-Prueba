@@ -1277,6 +1277,9 @@ function renderPredictSection() {
     var canResolve = isAdmin && !m.resolved && now >= m.resolveAt;
     var myUp = Number(m.myUp) / 1e6, myDown = Number(m.myDown) / 1e6;
     var hasClaim = m.resolved && ((m.upWon && myUp > 0) || (!m.upWon && myDown > 0));
+    // ocultar mercados ya resueltos donde este usuario no tiene nada que cobrar:
+    // la lista queda limpia (solo mercados activos) sin borrar nada on-chain
+    if (m.resolved && myUp <= 0 && myDown <= 0) return;
 
     var chSym = symFromLabel(m.label);
     chartSymByMarket[m.id] = chSym;
