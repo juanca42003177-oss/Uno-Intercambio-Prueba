@@ -1259,9 +1259,11 @@ function renderPredictSection() {
 
     var chSym = symFromLabel(m.label);
     chartSymByMarket[m.id] = chSym;
-    html += '<div class="box"><h4>' + (m.label || ('Mercado #' + m.id)) + '</h4>'
+    marketDeadlines[m.id] = { betDeadline: Number(m.betDeadline), resolveAt: Number(m.resolveAt), resolved: !!m.resolved };
+    html += '<div class="box"><h4>' + (m.label || 'Mercado') + ' <span style="font-size:11px;font-weight:600;color:var(--muted)">#' + m.id + '</span></h4>'
       + '<div class="small" style="margin:6px 0">Pozo total: $' + pot.toFixed(2) + ' USDC'
-      + (m.resolved ? (' · Resultado: ' + (m.upWon ? '▲ ALZA' : '▼ BAJA')) : (betsOpen ? ' · Apuestas abiertas' : ' · Apuestas cerradas, esperando resolución')) + '</div>';
+      + (m.resolved ? (' · Resultado: ' + (m.upWon ? '▲ ALZA' : '▼ BAJA')) : (betsOpen ? ' · Apuestas abiertas' : ' · Apuestas cerradas, esperando resolución')) + '</div>'
+      + (!m.resolved ? '<div class="small" id="mktCountdown' + m.id + '" style="font-weight:700;color:var(--yellow)">—</div>' : '');
 
     if (chSym) {
       html += '<div style="margin:10px 0;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px">'
@@ -1310,10 +1312,44 @@ function renderPredictSection() {
     if (csy && !seen[csy]) { seen[csy] = 1; loadPriceHistory(csy); }
   }
   drawAllPredictCharts();
+  tickMarketCountdowns();
 }
 
 // ====== GRÁFICO EN VIVO PARA MERCADOS DE PREDICCIÓN ======
 var chartSymByMarket = {};            // marketId -> símbolo del token detectado
+var marketDeadlines = {};             // marketId -> {betDeadline, resolveAt, resolved} para la cuenta atrás
+
+function fmtCountdown(sec) {
+  if (sec <= 0) return '0s';
+  var d = Math.floor(sec / 86400); sec -= d * 86400;
+  var h = Math.floor(sec / 3600); sec -= h * 3600;
+  var m = Math.floor(sec / 60); sec -= m * 60;
+  var s = Math.floor(sec);
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
+function tickMarketCountdowns() {
+  var now = Math.floor(Date.now() / 1000);
+  for (var mid in marketDeadlines) {
+    var info = marketDeadlines[mid];
+    var el = document.getElementById('mktCountdown' + mid);
+    if (!el || info.resolved) continue;
+    if (now < info.betDeadline) {
+      el.textContent = '⏱ Cierra apuestas en ' + fmtCountdown(info.betDeadline - now);
+      el.style.color = 'var(--yellow)';
+    } else if (now < info.resolveAt) {
+      el.textContent = '🔒 Apuestas cerradas · resuelve en ' + fmtCountdown(info.resolveAt - now);
+      el.style.color = 'var(--muted)';
+    } else {
+      el.textContent = '✅ Listo para resolver';
+      el.style.color = '#0ecb81';
+    }
+  }
+}
+setInterval(tickMarketCountdowns, 1000);
 var chartState = {};                  // sym -> {series:[], live:[], range:'1H', fetchedAt:0, loading:false}
 var CHART_RANGES = { '15M': 15*60*1000, '1H': 60*60*1000, '6H': 6*60*60*1000, '24H': 24*60*60*1000 };
 var _chartSymsSorted = null;
@@ -1375,6 +1411,7 @@ async function loadPriceHistory(sym) {
   }
   st.loading = false;
   drawAllPredictCharts();
+  tickMarketCountdowns();
 }
 
 function setChartRange(marketId, range) {
