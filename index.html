@@ -1093,7 +1093,12 @@ function renderVaultCard() {
   if (balEl) balEl.innerText = (balances.AXO || 0).toFixed(4);
   if (!vaultPredictData || !vaultPredictData.vault) return;
   var v = vaultPredictData.vault;
-  if (minEl) minEl.innerText = (Number(v.minDeposit) / 1e18).toFixed(2);
+  if (minEl) {
+    var minAxo = Number(v.minDeposit) / 1e18;
+    var axoUsd = prices.AXO || 0;
+    minEl.innerText = minAxo.toLocaleString('es', {maximumFractionDigits:0})
+      + (axoUsd ? (' (≈$' + (minAxo * axoUsd).toFixed(2) + ')') : '');
+  }
   if (lockEl) lockEl.innerText = v.lockPeriodDays;
   if (pausedNote) pausedNote.style.display = v.depositsPaused ? 'block' : 'none';
 
