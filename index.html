@@ -155,18 +155,27 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 
 <div id="earn" style="display:none">
   <div class="main">
-    <h3 style="text-align:center">🏦 Bóveda de Staking Real</h3>
+    <h3 style="text-align:center">🏦 Bóveda de Staking</h3>
     <div class="small" style="text-align:center;margin-bottom:4px">Tus tokens trabajan en pools reales de Uniswap</div>
-    <div class="box" style="font-size:12.5px;line-height:1.6">
-      <b style="color:var(--yellow)">¿Cómo funciona?</b><br>
-      Al activarse, tu depósito entra en pools de liquidez reales de Uniswap (los mismos que usa el Swap) y ganas tu parte <b>real</b> de las comisiones que esos pools generan cada día. Sin rendimientos inventados: lo que ves es lo que el pool produce.
+
+    <div class="box" style="background:rgba(14,203,129,.08);border-color:rgba(14,203,129,.4)">
+      <span class="badge badgeLive">ACTIVA</span>
+      <h4 style="margin-top:8px">AXO / WLD — Bóveda REAL</h4>
+      <div class="phaseNote">Depositas AXO, el contrato mete liquidez real al pool AXO/WLD. Cobro: <b>20% solo de la ganancia</b> al retirar. Bloqueo: <b id="vLockDays">30</b> días. Mínimo: <b id="vMinDeposit">—</b> AXO.</div>
+      <div class="small" style="margin-top:10px">Cantidad de AXO a depositar</div>
+      <input id="vaultAmt" type="number" placeholder="0.0" style="font-size:16px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      <div class="small">Saldo AXO: <span id="vaultBal">0</span></div>
+      <button class="btnY" onclick="doVaultDeposit()">🏦 Depositar en la Bóveda</button>
+      <div id="vaultPausedNote" style="display:none" class="phaseNote" style="color:var(--red)">⚠️ Depósitos nuevos pausados temporalmente. Los retiros siguen funcionando normal.</div>
     </div>
-    <div class="small" style="margin:14px 4px 6px;font-weight:700">Pools disponibles para staking</div>
+
+    <div id="myDepositsBox" style="display:none">
+      <div class="small" style="margin:14px 4px 6px;font-weight:700">Mis depósitos</div>
+      <div id="myDepositsList"></div>
+    </div>
+
+    <div class="small" style="margin:14px 4px 6px;font-weight:700">Próximos pools (Fase 2)</div>
     <div id="vaultList"></div>
-    <div class="box" style="background:rgba(240,185,11,.08);border-color:rgba(240,185,11,.35)">
-      <span class="badge">FASE 2</span>
-      <div class="phaseNote">Los depósitos reales se activan con el contrato inteligente de bóveda (en desarrollo, auditado antes de activar). Esta versión muestra los pools reales y sus precios en vivo.</div>
-    </div>
     <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef">← Volver</button>
   </div>
 </div>
@@ -177,22 +186,26 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
     <div class="small" style="text-align:center;margin-bottom:12px">Transparente: apuestan los usuarios, gana quien acierta</div>
     <div class="box" style="font-size:12.5px;line-height:1.6">
       <b style="color:var(--yellow)">Modelo transparente</b><br>
-      Sin banca y sin resultados manipulados: todas las apuestas de un mercado entran a un <b>pozo común en cadena</b>. Al cerrar, el precio de referencia decide quién acertó y el pozo se reparte entre los ganadores. Verás las reglas, el pozo y los participantes en todo momento.
+      Apuestas en USDC (mínimo $10) a ALZA o BAJA. Todo va a un <b>pozo común en cadena</b>. Al resolverse, el lado que acertó se reparte el pozo (se cobra 1% una sola vez).
     </div>
-    <div class="small" style="margin:14px 4px 6px;font-weight:700">Mercado demo — WLD en los próximos 5 minutos</div>
-    <div class="tickerRow">
-      <div><div class="small">Precio WLD ahora</div><b id="predWldPrice" style="font-size:18px">$0.00</b></div>
-      <div class="badgeLive badge badgeLive" style="align-self:center">EN VIVO</div>
+
+    <div id="adminCreateBox" style="display:none" class="box" style="background:rgba(240,185,11,.08);border-color:rgba(240,185,11,.35)">
+      <b style="color:var(--yellow)">Panel de administrador</b>
+      <div class="small" style="margin:8px 0 4px">Nombre del mercado</div>
+      <input id="mLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      <div class="small" style="margin:10px 0 4px">Duración de apuestas (minutos)</div>
+      <input id="mBetMin" type="number" value="10" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      <div class="small" style="margin:10px 0 4px">Minutos extra hasta resolver (después de cerrar apuestas)</div>
+      <input id="mResolveMin" type="number" value="5" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      <button class="btnY" onclick="doCreateMarket()">➕ Crear mercado</button>
     </div>
-    <div class="upDown">
-      <button class="up" onclick="predDemo('ALZA')">▲ Creo que SUBE</button>
-      <button class="down" onclick="predDemo('BAJA')">▼ Creo que BAJA</button>
+
+    <div id="marketsList"></div>
+    <div id="noMarkets" style="display:none" class="box" style="text-align:center">
+      <div class="small">Aún no hay mercados abiertos. Vuelve pronto.</div>
     </div>
-    <div class="box" style="background:rgba(240,185,11,.08);border-color:rgba(240,185,11,.35)">
-      <span class="badge">FASE 2</span>
-      <div class="phaseNote">Las apuestas con dinero real se activan con el contrato de mercado en cadena (en desarrollo). Este mercado demo usa precios reales en vivo para que veas cómo funcionará.</div>
-    </div>
-    <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef">← Volver</button>
+
+    <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px">← Volver</button>
   </div>
 </div>
 
@@ -229,6 +242,11 @@ const SWAP_ROUTER_V2 = '0x541aB7c31A119441eF3575F6973277DE0eF460bd';
 const WETH_ADDRESS   = '0x4200000000000000000000000000000000000006';
 const WLD_ADDRESS    = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
 const FEE_WALLET     = '0x019001d46cd3155ef045a41f4c359c040595438c';
+// --- Bóveda y Predicciones (contratos reales, World Chain) ---
+const VAULT_ADDRESS    = '0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71';
+const PREDICT_ADDRESS  = '0xa3c2071D00a35b783Eb2e5B46ceCFd4fFb1D5170';
+const RESOLVER_ADDRESS = '0x49909c04b0c620cfe489b4c93b5a4a6312135e28'; // wallet de Juan
+const API_VAULT_PREDICT = 'https://solene-539c4635.base44.app/functions/getVaultPredictInfo';
 
 const FEE_BPS_NORMAL  = 30n;   // 0.3%
 const FEE_BPS_HARD    = 100n;  // 1% tokens difíciles
@@ -347,6 +365,7 @@ function go(page) {
   }
   if (page === 'swap') { fillSelects(); calc(); }
   if (page === 'send') { fillSendSelect(); updateSendBal(); }
+  if (page === 'earn' || page === 'pred') { loadVaultPredict(); }
 }
 
 function openToken(sym) {
@@ -1005,45 +1024,297 @@ window.addEventListener('load', function() {
 </script>
 
 <script>
-// ============ VISTAS NUEVAS: BÓVEDA Y PREDICCIONES ============
-// Bóvedas reales: los mismos pools que usa el swap (verificados en cadena).
-var VAULTS = [
+// ============ BÓVEDA Y PREDICCIONES REALES (contratos en cadena) ============
+// Pools que llegarán en Fase 2 (aún no tienen contrato desplegado).
+var VAULTS_FASE2 = [
   {name:'WLD / ETH',   detail:'Pool V3 fee 0.05%', syms:['WLD','ETH']},
   {name:'WBTC / ETH',  detail:'Pool V3 fee 0.3%',  syms:['WBTC','ETH']},
   {name:'WBTC / USDC', detail:'Pool V3 fee 0.05%', syms:['WBTC','USDC']},
   {name:'uSOL / ETH',  detail:'Pool V3 fee 0.3%',  syms:['uSOL','ETH']},
   {name:'WLD / USDC',  detail:'Pool V3 fee 1%',    syms:['WLD','USDC']},
-  {name:'DNA / ETH',   detail:'Pool V2 (tax 15% manejado)', syms:['DNA','ETH']},
-  {name:'AXO / WLD',   detail:'Pool V2',           syms:['AXO','WLD']},
+  {name:'DNA / ETH',   detail:'Pool V2 (tax 15% — variante 2b pendiente)', syms:['DNA','ETH']},
   {name:'uDOGE / ETH', detail:'Pool V3 fee 0.3%',  syms:['uDOGE','ETH']},
   {name:'uXRP / ETH',  detail:'Pool V3 fee 0.3%',  syms:['uXRP','ETH']}
 ];
-function renderVaults() {
+function renderVaultsFase2() {
   var el = document.getElementById('vaultList');
   if (!el) return;
   var html = '';
-  for (var i = 0; i < VAULTS.length; i++) {
-    var v = VAULTS[i];
+  for (var i = 0; i < VAULTS_FASE2.length; i++) {
+    var v = VAULTS_FASE2[i];
     html += '<div class="vault"><div style="display:flex;justify-content:space-between;align-items:center">'
       + '<div><h4>' + v.name + '</h4><div class="small">' + v.detail + '</div></div>'
       + '<span class="badge">FASE 2</span></div></div>';
   }
   el.innerHTML = html;
 }
-renderVaults();
+renderVaultsFase2();
 
-function predDemo(dir) {
-  var p = window.prices ? (prices['WLD'] || 0) : 0;
-  var msg = dir === 'ALZA'
-    ? 'Elegiste ▲ ALZA en el mercado demo. Cuando se active la Fase 2, tu apuesta entraría al pozo común en cadena con este mismo flujo.'
-    : 'Elegiste ▼ BAJA en el mercado demo. Cuando se active la Fase 2, tu apuesta entraría al pozo común en cadena con este mismo flujo.';
-  if (window.showOk) showOk(msg, '📊');
+// ---- codificación de llamadas a los contratos ----
+function encodeUint(n) { return BigInt(n).toString(16).padStart(64, '0'); }
+function encodeBool(b) { return (b ? '1' : '0').padStart(64, '0'); }
+function encodeDeposit(amountA) { return '0xb6b55f25' + encodeUint(amountA); }
+function encodeWithdraw(idx) { return '0x2e1a7d4d' + encodeUint(idx); }
+function encodeBet(marketId, up, amount) { return '0x8decaec0' + encodeUint(marketId) + encodeBool(up) + encodeUint(amount); }
+function encodeClaim(marketId) { return '0x379607f5' + encodeUint(marketId); }
+function encodeResolve(marketId, upWon) { return '0x52a34b05' + encodeUint(marketId) + encodeBool(upWon); }
+function encodeCreateMarket(label, betDeadline, resolveAt) {
+  var strBytes = new TextEncoder().encode(label);
+  var strHex = Array.from(strBytes).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+  var strLen = strBytes.length;
+  var pad = (64 - (strHex.length % 64)) % 64;
+  var strPadded = strHex + '0'.repeat(pad);
+  var offsetHex = (3 * 32).toString(16).padStart(64, '0'); // 3 slots antes del string dinámico
+  return '0x9d104956' + offsetHex + encodeUint(betDeadline) + encodeUint(resolveAt) + strLen.toString(16).padStart(64,'0') + strPadded;
 }
-// actualizar precio WLD del mercado demo cada vez que llegan precios
-setInterval(function () {
-  var el = document.getElementById('predWldPrice');
-  if (el && window.prices && prices['WLD']) el.innerText = '$' + Number(prices['WLD']).toFixed(4);
-}, 1000);
+
+var vaultPredictData = null;
+
+async function loadVaultPredict() {
+  try {
+    var res = await fetch(API_VAULT_PREDICT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: currentAccount || '' })
+    });
+    vaultPredictData = await res.json();
+  } catch (e) {
+    vaultPredictData = null;
+  }
+  renderVaultCard();
+  renderPredictSection();
+}
+
+function renderVaultCard() {
+  var minEl = document.getElementById('vMinDeposit');
+  var lockEl = document.getElementById('vLockDays');
+  var pausedNote = document.getElementById('vaultPausedNote');
+  var balEl = document.getElementById('vaultBal');
+  if (balEl) balEl.innerText = (balances.AXO || 0).toFixed(4);
+  if (!vaultPredictData || !vaultPredictData.vault) return;
+  var v = vaultPredictData.vault;
+  if (minEl) minEl.innerText = (Number(v.minDeposit) / 1e18).toFixed(2);
+  if (lockEl) lockEl.innerText = v.lockPeriodDays;
+  if (pausedNote) pausedNote.style.display = v.depositsPaused ? 'block' : 'none';
+
+  var box = document.getElementById('myDepositsBox');
+  var list = document.getElementById('myDepositsList');
+  if (!box || !list) return;
+  if (!currentAccount || !v.deposits || v.deposits.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  var now = Math.floor(Date.now() / 1000);
+  var html = '';
+  v.deposits.forEach(function(d) {
+    if (Number(d.liquidity) === 0) return; // ya retirado
+    var principal = (Number(d.principalA) / 1e18).toFixed(4);
+    var unlocked = d.unlocked;
+    var remain = Math.max(0, d.unlockAt - now);
+    var days = Math.ceil(remain / 86400);
+    html += '<div class="vault"><div style="display:flex;justify-content:space-between;align-items:center">'
+      + '<div><h4>' + principal + ' AXO depositados</h4>'
+      + '<div class="small">' + (unlocked ? 'Disponible para retirar' : ('Se desbloquea en ' + days + ' día(s)')) + '</div></div>'
+      + (unlocked
+          ? '<button class="btnY" style="width:auto;padding:10px 16px;margin:0" onclick="doVaultWithdraw(' + d.index + ')">Retirar</button>'
+          : '<span class="badge">🔒</span>')
+      + '</div></div>';
+  });
+  list.innerHTML = html || '<div class="small">No tienes depósitos activos.</div>';
+}
+
+async function doVaultDeposit() {
+  if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+  var amount = parseFloat(document.getElementById('vaultAmt').value);
+  if (!amount || amount <= 0) return showOk('Cantidad inválida', '⚠️');
+  var bal = balances.AXO || 0;
+  if (bal < amount) return showOk('Saldo de AXO insuficiente', '⚠️');
+  var axoAddr = resolveAddr('AXO');
+  var amountRaw = toRawAmount(amount, 18);
+  try {
+    showOk('Confirma el depósito en World App...', '⏳');
+    var txs = [
+      { to: axoAddr, data: encodeApprove(VAULT_ADDRESS, 0n), value: '0x0' },
+      { to: axoAddr, data: encodeApprove(VAULT_ADDRESS, amountRaw), value: '0x0' },
+      { to: VAULT_ADDRESS, data: encodeDeposit(amountRaw), value: '0x0' }
+    ];
+    var result = await MiniKit.sendTransaction({ chainId: 480, transactions: txs });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Depósito realizado! Se bloqueará 30 días.', '✅');
+      fastRefreshAfterTx();
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Depósito cancelado', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
+
+async function doVaultWithdraw(idx) {
+  if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+  try {
+    showOk('Confirma el retiro en World App...', '⏳');
+    var result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [{ to: VAULT_ADDRESS, data: encodeWithdraw(idx), value: '0x0' }]
+    });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Retiro realizado!', '✅');
+      fastRefreshAfterTx();
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Retiro cancelado', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
+
+function renderPredictSection() {
+  var adminBox = document.getElementById('adminCreateBox');
+  var isAdmin = currentAccount && currentAccount.toLowerCase() === RESOLVER_ADDRESS;
+  if (adminBox) adminBox.style.display = isAdmin ? 'block' : 'none';
+
+  var listEl = document.getElementById('marketsList');
+  var noneEl = document.getElementById('noMarkets');
+  if (!listEl) return;
+  var markets = (vaultPredictData && vaultPredictData.predict && vaultPredictData.predict.markets) || [];
+  if (markets.length === 0) {
+    listEl.innerHTML = '';
+    if (noneEl) noneEl.style.display = 'block';
+    return;
+  }
+  if (noneEl) noneEl.style.display = 'none';
+  var now = Math.floor(Date.now() / 1000);
+  var html = '';
+  markets.slice().reverse().forEach(function(m) {
+    var pot = (Number(m.totalUp) + Number(m.totalDown)) / 1e6;
+    var betsOpen = now < m.betDeadline && !m.resolved;
+    var canResolve = isAdmin && !m.resolved && now >= m.resolveAt;
+    var myUp = Number(m.myUp) / 1e6, myDown = Number(m.myDown) / 1e6;
+    var hasClaim = m.resolved && ((m.upWon && myUp > 0) || (!m.upWon && myDown > 0));
+
+    html += '<div class="box"><h4>' + (m.label || ('Mercado #' + m.id)) + '</h4>'
+      + '<div class="small" style="margin:6px 0">Pozo total: $' + pot.toFixed(2) + ' USDC'
+      + (m.resolved ? (' · Resultado: ' + (m.upWon ? '▲ ALZA' : '▼ BAJA')) : (betsOpen ? ' · Apuestas abiertas' : ' · Apuestas cerradas, esperando resolución')) + '</div>';
+
+    if (betsOpen) {
+      html += '<input id="betAmt' + m.id + '" type="number" placeholder="Monto en USDC (mín $10)" style="font-size:14px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">'
+        + '<div class="upDown">'
+        + '<button class="up" onclick="doBet(' + m.id + ', true)">▲ ALZA</button>'
+        + '<button class="down" onclick="doBet(' + m.id + ', false)">▼ BAJA</button>'
+        + '</div>';
+    }
+    if (myUp > 0 || myDown > 0) {
+      html += '<div class="small">Tu apuesta: ' + (myUp > 0 ? ('▲ $' + myUp.toFixed(2)) : ('▼ $' + myDown.toFixed(2))) + '</div>';
+    }
+    if (hasClaim) {
+      html += '<button class="btnY" onclick="doClaim(' + m.id + ')">💰 Cobrar premio</button>';
+    }
+    if (canResolve) {
+      html += '<div class="small" style="margin-top:8px;font-weight:700">Resolver (admin):</div>'
+        + '<div class="upDown">'
+        + '<button class="up" onclick="doResolve(' + m.id + ', true)">Ganó ALZA</button>'
+        + '<button class="down" onclick="doResolve(' + m.id + ', false)">Ganó BAJA</button>'
+        + '</div>';
+    }
+    html += '</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+async function doBet(marketId, up) {
+  if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+  var amount = parseFloat(document.getElementById('betAmt' + marketId).value);
+  if (!amount || amount < 10) return showOk('Mínimo $10 USDC', '⚠️');
+  var bal = balances.USDC || 0;
+  if (bal < amount) return showOk('Saldo de USDC insuficiente', '⚠️');
+  var usdcAddr = resolveAddr('USDC');
+  var amountRaw = toRawAmount(amount, 6);
+  try {
+    showOk('Confirma la apuesta en World App...', '⏳');
+    var txs = [
+      { to: usdcAddr, data: encodeApprove(PREDICT_ADDRESS, 0n), value: '0x0' },
+      { to: usdcAddr, data: encodeApprove(PREDICT_ADDRESS, amountRaw), value: '0x0' },
+      { to: PREDICT_ADDRESS, data: encodeBet(marketId, up, amountRaw), value: '0x0' }
+    ];
+    var result = await MiniKit.sendTransaction({ chainId: 480, transactions: txs });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Apuesta registrada!', '✅');
+      fastRefreshAfterTx();
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Apuesta cancelada', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
+
+async function doClaim(marketId) {
+  try {
+    showOk('Confirma el cobro en World App...', '⏳');
+    var result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [{ to: PREDICT_ADDRESS, data: encodeClaim(marketId), value: '0x0' }]
+    });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Premio cobrado!', '✅');
+      fastRefreshAfterTx();
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Cancelado', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
+
+async function doResolve(marketId, upWon) {
+  try {
+    showOk('Confirma la resolución en World App...', '⏳');
+    var result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [{ to: PREDICT_ADDRESS, data: encodeResolve(marketId, upWon), value: '0x0' }]
+    });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Mercado resuelto!', '✅');
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Cancelado', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
+
+async function doCreateMarket() {
+  var label = document.getElementById('mLabel').value.trim();
+  var betMin = parseFloat(document.getElementById('mBetMin').value);
+  var resolveMin = parseFloat(document.getElementById('mResolveMin').value);
+  if (!label) return showOk('Escribe un nombre para el mercado', '⚠️');
+  if (!betMin || betMin <= 0) return showOk('Duración inválida', '⚠️');
+  var now = Math.floor(Date.now() / 1000);
+  var betDeadline = now + Math.round(betMin * 60);
+  var resolveAt = betDeadline + Math.round((resolveMin || 1) * 60);
+  try {
+    showOk('Confirma la creación en World App...', '⏳');
+    var result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [{ to: PREDICT_ADDRESS, data: encodeCreateMarket(label, betDeadline, resolveAt), value: '0x0' }]
+    });
+    if (result && result.data && result.data.userOpHash) {
+      showOk('¡Mercado creado!', '✅');
+      setTimeout(loadVaultPredict, 3000);
+    } else {
+      showOk('Cancelado', '❌');
+    }
+  } catch (e) {
+    showOk('Error: ' + (e.message || e), '❌');
+  }
+}
 </script>
 </body>
 </html>
