@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Uno Trading — Admin de la Bóveda</title>
+<title>Uno Trading — Admin de Bóvedas</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <style>
 :root{--bg:#0b0e14;--card:#151a21;--card2:#1e232c;--yellow:#f0b90b;--green:#0ecb81;--red:#f6465d;--muted:#848e9c;--border:#2b313a}
@@ -21,6 +21,7 @@ button.sec{background:var(--card2);color:#eaecef;border:1px solid var(--border)}
 .err{color:var(--red);font-weight:700}
 .tag{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;background:rgba(240,185,11,.15);color:var(--yellow);margin-bottom:6px}
 input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;color:#eaecef;font-size:16px;font-weight:700;outline:none}
+select{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;color:#eaecef;font-size:15px;font-weight:700;outline:none}
 label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10px 0 4px}
 </style>
 </head>
@@ -28,7 +29,7 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
 <div style="text-align:center;margin-top:10px">
   <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#f0b90b,#ff9d00);display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#111">UT</div>
   <h1>Uno Trading</h1>
-  <div class="sub">Admin de la Bóveda — ajustar mínimo y pausa</div>
+  <div class="sub">Admin de Bóvedas — mínimo y pausa por bóveda</div>
 </div>
 
 <div class="box">
@@ -37,10 +38,15 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   <button id="btnConnect" onclick="connect()">🔗 Conectar Wallet</button>
 </div>
 
+<div class="box" id="selBox" style="display:none">
+  <span class="tag">BÓVEDA A ADMINISTRAR</span>
+  <select id="vaultSel" onchange="onVaultChange()"></select>
+</div>
+
 <div class="box" id="minBox" style="display:none">
   <span class="tag">MÍNIMO DE DEPÓSITO</span>
   <div class="status">Mínimo actual en cadena: <b id="curMin">—</b><br><span id="curMinUsd" style="font-size:12px"></span></div>
-  <label>Precio de AXO ahora: <span id="axoPrice">—</span> (lo trae el servidor de precios)</label>
+  <label>Precio del token ahora: <span id="tokPrice">—</span> (lo trae el servidor de precios)</label>
   <label>Mínimo en dólares (USD)</label>
   <input id="usdInput" type="number" value="15" step="0.5" oninput="previewMin()">
   <div class="status" id="preview" style="margin-top:8px"></div>
@@ -49,13 +55,19 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
 
 <div class="box" id="pauseBox" style="display:none">
   <span class="tag">OPCIONAL</span>
-  <div class="status">Pausa NUEVOS depósitos si algo se ve raro. Los retiros jamás se bloquean.</div>
+  <div class="status">Pausa NUEVOS depósitos de esta bóveda si algo se ve raro. Los retiros jamás se bloquean.</div>
   <div class="status">Estado: <b id="pauseState">—</b></div>
   <button class="sec" id="btnPause" onclick="togglePause()">⏸️ Pausar depósitos</button>
 </div>
 
 <script>
-const VAULT = '0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71';
+// ---- Bóvedas de Uno Trading ----
+// addr vacío = pendiente de despliegue (aparece en la lista pero no se puede administrar)
+const VAULTS = [
+  {id:'axo',  name:'AXO / WLD',  sym:'AXO',  addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71'},
+  {id:'dna',  name:'DNA / ETH',  sym:'DNA',  addr:''},
+  {id:'chad', name:'CHAD / ETH', sym:'CHAD', addr:''}
+];
 const OWNER = '0x49909C04B0C620CFe489b4C93B5A4A6312135E28';
 const CHAIN_ID = 480;
 const API_PRICES = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
@@ -67,9 +79,21 @@ const ABI = [
   'function owner() view returns (address)'
 ];
 
-var provider, signer, vault, axoPrice = 0, esc = function(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
+var provider, signer, vault = null, prices = {}, curVaultId = null;
+var esc = function(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
 
 function setStatus(html){ document.getElementById('status').innerHTML = html; }
+function curVault(){ for (var i=0;i<VAULTS.length;i++){ if (VAULTS[i].id===curVaultId) return VAULTS[i]; } return null; }
+
+function renderVaultSelect(){
+  var sel = document.getElementById('vaultSel');
+  var html = '';
+  VAULTS.forEach(function(v){
+    html += '<option value="' + v.id + '"' + (v.id===curVaultId?' selected':'') + (v.addr?'':' disabled') + '>'
+      + v.name + (v.addr?'':' — pendiente de despliegue') + '</option>';
+  });
+  sel.innerHTML = html;
+}
 
 async function connect(){
   try{
@@ -91,59 +115,81 @@ async function connect(){
     var addr = await signer.getAddress();
     document.getElementById('addrBox').style.display='block';
     document.getElementById('addrBox').textContent = addr;
-    vault = new ethers.Contract(VAULT, ABI, signer);
     if(addr.toLowerCase() !== OWNER.toLowerCase()){
-      setStatus('<span class="err">Esta wallet NO es la dueña del contrato. Usa 0x4990...5E28.</span>');
+      setStatus('<span class="err">Esta wallet NO es la dueña de los contratos. Usa 0x4990...5E28.</span>');
       return;
     }
-    document.getElementById('minBox').style.display='block';
-    document.getElementById('pauseBox').style.display='block';
+    curVaultId = VAULTS[0].id;
+    renderVaultSelect();
+    document.getElementById('selBox').style.display='block';
     setStatus('<span class="ok">Dueño conectado.</span> Cargando datos...');
-    await refreshAll();
+    await onVaultChange();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
 }
 
+async function onVaultChange(){
+  curVaultId = document.getElementById('vaultSel').value;
+  var v = curVault();
+  if (!v || !v.addr){ return; }
+  vault = new ethers.Contract(v.addr, ABI, signer);
+  document.getElementById('minBox').style.display='block';
+  document.getElementById('pauseBox').style.display='block';
+  await refreshAll();
+}
+
 async function refreshAll(){
+  var v = curVault();
+  if(!vault || !v) return;
   var min = await vault.minDeposit();
   var paused = await vault.depositsPaused();
-  var minAxo = Number(ethers.utils.formatEther(min));
-  document.getElementById('curMin').textContent = minAxo.toLocaleString('es', {maximumFractionDigits:2}) + ' AXO';
-  try{
-    var res = await fetch(API_PRICES);
-    var data = await res.json();
-    axoPrice = (data && data.prices && data.prices.AXO) || 0;
-  }catch(e){ axoPrice = 0; }
-  document.getElementById('axoPrice').textContent = axoPrice ? ('$' + axoPrice) : 'no disponible';
-  if(axoPrice){
-    document.getElementById('curMinUsd').textContent = '≈ $' + (minAxo * axoPrice).toFixed(2) + ' al precio actual';
+  var minTok = Number(ethers.utils.formatEther(min));
+  document.getElementById('curMin').textContent = minTok.toLocaleString('es', {maximumFractionDigits:2}) + ' ' + v.sym;
+  var price = prices[v.sym] || 0;
+  document.getElementById('tokPrice').textContent = price ? ('$' + price) : 'no disponible';
+  if(price){
+    document.getElementById('curMinUsd').textContent = '≈ $' + (minTok * price).toFixed(2) + ' al precio actual';
+  } else {
+    document.getElementById('curMinUsd').textContent = '';
   }
   document.getElementById('pauseState').textContent = paused ? 'PAUSADO (sin depósitos nuevos)' : 'ACTIVO (acepta depósitos)';
   document.getElementById('btnPause').textContent = paused ? '▶️ Reactivar depósitos' : '⏸️ Pausar depósitos';
   previewMin();
-  setStatus('<span class="ok">Dueño conectado.</span> Todo listo.');
+  setStatus('<span class="ok">Dueño conectado.</span> Administrando: ' + v.name);
+}
+
+async function loadPrices(){
+  try{
+    var res = await fetch(API_PRICES);
+    var data = await res.json();
+    prices = (data && data.prices) || {};
+  }catch(e){ prices = {}; }
 }
 
 function previewMin(){
+  var v = curVault();
+  var price = v ? (prices[v.sym] || 0) : 0;
   var usd = parseFloat(document.getElementById('usdInput').value);
   var el = document.getElementById('preview');
-  if(!usd || !axoPrice){ el.textContent = ''; return; }
-  var axo = usd / axoPrice;
-  el.innerHTML = 'Equivale a <b>' + axo.toLocaleString('es', {maximumFractionDigits:0}) + ' AXO</b>';
+  if(!usd || !price || !v){ el.textContent = ''; return; }
+  var tok = usd / price;
+  el.innerHTML = 'Equivale a <b>' + tok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + v.sym + '</b>';
 }
 
 async function setMin(){
   var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
   try{
+    var v = curVault();
     var usd = parseFloat(document.getElementById('usdInput').value);
+    var price = v ? (prices[v.sym] || 0) : 0;
     if(!usd || usd <= 0){ setStatus('<span class="err">Escribe un monto válido.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
-    if(!axoPrice){ setStatus('<span class="err">No hay precio de AXO ahora. Intenta de nuevo.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
-    var axo = usd / axoPrice;
-    var raw = ethers.utils.parseEther(axo.toFixed(18).toString());
+    if(!price){ setStatus('<span class="err">No hay precio de ' + (v ? v.sym : '') + ' ahora. Intenta de nuevo.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
+    var tok = usd / price;
+    var raw = ethers.utils.parseEther(tok.toFixed(18).toString());
     setStatus('Acepta la transacción en tu wallet...');
     var tx = await vault.setMinDeposit(raw);
     setStatus('Esperando confirmación de la red...');
     await tx.wait();
-    setStatus('<span class="ok">✅ Mínimo actualizado a ~$' + usd + ' (' + axo.toLocaleString('es', {maximumFractionDigits:0}) + ' AXO).</span>');
+    setStatus('<span class="ok">✅ Mínimo de ' + v.name + ' actualizado a ~$' + usd + ' (' + tok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + v.sym + ').</span>');
     await refreshAll();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
   btn.disabled=false; btn.textContent='💾 Actualizar mínimo';
@@ -162,6 +208,9 @@ async function togglePause(){
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
   btn.disabled=false;
 }
+
+// carga precios al abrir para tenerlos listos
+loadPrices();
 </script>
 </body>
 </html>
