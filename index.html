@@ -1279,7 +1279,8 @@ function renderPredictSection() {
 async function doBet(marketId, up) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
   var amount = parseFloat(document.getElementById('betAmt' + marketId).value);
-  if (!amount || amount < 10) return showOk('Mínimo $10 USDC', '⚠️');
+  var minBet = (vaultPredictData && vaultPredictData.predict && vaultPredictData.predict.minBet) ? (Number(vaultPredictData.predict.minBet) / 1e6) : 1;
+  if (!amount || amount < minBet) return showOk('Mínimo $' + minBet + ' USDC', '⚠️');
   var bal = balances.USDC || 0;
   if (bal < amount) return showOk('Saldo de USDC insuficiente', '⚠️');
   var usdcAddr = resolveAddr('USDC');
