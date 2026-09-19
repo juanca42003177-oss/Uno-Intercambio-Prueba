@@ -57,6 +57,13 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 .up{background:rgba(14,203,129,.16);color:var(--green);border:1px solid rgba(14,203,129,.4)}
 .down{background:rgba(246,70,93,.16);color:var(--red);border:1px solid rgba(246,70,93,.4)}
 .tickerRow{display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:10px 0}
+.mono{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;letter-spacing:-.2px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:20px;background:rgba(240,185,11,.15);color:var(--yellow);line-height:1.5;white-space:nowrap}
+.pillMuted{background:rgba(132,142,156,.16);color:var(--muted)}
+.pillGreen{background:rgba(14,203,129,.15);color:var(--green)}
+.pillRed{background:rgba(246,70,93,.15);color:var(--red)}
+.mktCard h4{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px;font-weight:800}
+.mktCard .mktTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
 </style>
 </head>
 <body>
@@ -1260,24 +1267,27 @@ function renderPredictSection() {
     var chSym = symFromLabel(m.label);
     chartSymByMarket[m.id] = chSym;
     marketDeadlines[m.id] = { betDeadline: Number(m.betDeadline), resolveAt: Number(m.resolveAt), resolved: !!m.resolved };
-    html += '<div class="box"><h4>' + (m.label || 'Mercado') + ' <span style="font-size:11px;font-weight:600;color:var(--muted)">#' + m.id + '</span></h4>'
-      + '<div class="small" style="margin:6px 0">Pozo total: $' + pot.toFixed(2) + ' USDC'
-      + (m.resolved ? (' · Resultado: ' + (m.upWon ? '▲ ALZA' : '▼ BAJA')) : (betsOpen ? ' · Apuestas abiertas' : ' · Apuestas cerradas, esperando resolución')) + '</div>'
-      + (!m.resolved ? '<div class="small" id="mktCountdown' + m.id + '" style="font-weight:700;color:var(--yellow)">—</div>' : '');
+    html += '<div class="box mktCard">'
+      + '<div class="mktTop">'
+      +   '<div><h4>' + (m.label || 'Mercado') + '<span class="pill pillMuted mono">#' + m.id + '</span></h4>'
+      +   '<div class="small" style="margin-top:5px">Pozo: <span class="mono" style="color:#eaecef;font-weight:700">$' + pot.toFixed(2) + '</span> USDC'
+      +   (m.resolved ? (' · ' + (m.upWon ? '<b style="color:var(--green)">▲ Ganó ALZA</b>' : '<b style="color:var(--red)">▼ Ganó BAJA</b>')) : '') + '</div></div>'
+      +   (!m.resolved ? '<span class="pill" id="mktCountdown' + m.id + '">—</span>' : '')
+      + '</div>';
 
     if (chSym) {
-      html += '<div style="margin:10px 0;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center">'
-        + '<div><span style="font-size:11px;color:var(--muted)">Precio en vivo · ' + chSym + '</span>'
-        + '<div id="chPrice' + m.id + '" style="font-size:18px;font-weight:800;color:#eaecef">—</div></div>'
-        + '<div id="chChange' + m.id + '" style="font-size:12px;font-weight:700;text-align:right">—</div>'
+      html += '<div style="margin:12px 0 4px;background:linear-gradient(180deg,var(--card2),rgba(30,35,44,.4));border:1px solid var(--border);border-radius:14px;padding:12px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+        + '<div><span style="font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.4px;text-transform:uppercase">' + chSym + ' / USD</span>'
+        + '<div id="chPrice' + m.id + '" class="mono" style="font-size:21px;font-weight:800;color:#eaecef;letter-spacing:-.5px;margin-top:2px">—</div></div>'
+        + '<div id="chChange' + m.id + '" class="mono" style="font-size:12.5px;font-weight:700;text-align:right">—</div>'
         + '</div>'
-        + '<canvas id="chCanvas' + m.id + '" style="width:100%;height:110px;display:block;margin-top:4px"></canvas>'
-        + '<div style="display:flex;gap:6px;margin-top:8px">'
-        + '<button onclick="setChartRange(' + m.id + ',\'15M\')" id="chRng15M' + m.id + '" style="flex:1;font-size:11px;padding:5px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">15M</button>'
-        + '<button onclick="setChartRange(' + m.id + ',\'1H\')" id="chRng1H' + m.id + '" style="flex:1;font-size:11px;padding:5px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>'
-        + '<button onclick="setChartRange(' + m.id + ',\'6H\')" id="chRng6H' + m.id + '" style="flex:1;font-size:11px;padding:5px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">6H</button>'
-        + '<button onclick="setChartRange(' + m.id + ',\'24H\')" id="chRng24H' + m.id + '" style="flex:1;font-size:11px;padding:5px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">24H</button>'
+        + '<canvas id="chCanvas' + m.id + '" style="width:100%;height:120px;display:block;margin-top:8px"></canvas>'
+        + '<div style="display:flex;gap:6px;margin-top:10px">'
+        + '<button onclick="setChartRange(' + m.id + ',\'15M\')" id="chRng15M' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">15M</button>'
+        + '<button onclick="setChartRange(' + m.id + ',\'1H\')" id="chRng1H' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>'
+        + '<button onclick="setChartRange(' + m.id + ',\'6H\')" id="chRng6H' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">6H</button>'
+        + '<button onclick="setChartRange(' + m.id + ',\'24H\')" id="chRng24H' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">24H</button>'
         + '</div></div>';
     }
 
@@ -1338,14 +1348,14 @@ function tickMarketCountdowns() {
     var el = document.getElementById('mktCountdown' + mid);
     if (!el || info.resolved) continue;
     if (now < info.betDeadline) {
-      el.textContent = '⏱ Cierra apuestas en ' + fmtCountdown(info.betDeadline - now);
-      el.style.color = 'var(--yellow)';
+      el.textContent = '⏱ ' + fmtCountdown(info.betDeadline - now);
+      el.className = 'pill mono';
     } else if (now < info.resolveAt) {
-      el.textContent = '🔒 Apuestas cerradas · resuelve en ' + fmtCountdown(info.resolveAt - now);
-      el.style.color = 'var(--muted)';
+      el.textContent = '🔒 ' + fmtCountdown(info.resolveAt - now);
+      el.className = 'pill pillMuted mono';
     } else {
-      el.textContent = '✅ Listo para resolver';
-      el.style.color = '#0ecb81';
+      el.textContent = '✅ Listo';
+      el.className = 'pill pillGreen mono';
     }
   }
 }
@@ -1373,7 +1383,7 @@ function ensureChartState(sym) {
 function fmtChartPrice(p) {
   p = Number(p);
   if (!isFinite(p) || p <= 0) return '—';
-  if (p >= 1000) return p.toFixed(2);
+  if (p >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (p >= 1) return p.toFixed(4);
   if (p >= 0.01) return p.toFixed(4);
   return p.toFixed(8);
@@ -1486,19 +1496,37 @@ function drawPredictChart(marketId, sym) {
     if (pts[i][1] > pmax) pmax = pts[i][1];
   }
   if (pmax === pmin) { pmax = pmin * 1.001 || 1; pmin = pmin * 0.999; }
-  var pad = 6;
-  function X(t) { return pad + (t - t0) / (t1 - t0) * (w - 2 * pad); }
-  function Y(p) { return pad + (1 - (p - pmin) / (pmax - pmin)) * (h - 2 * pad); }
+  var padL = 6, padR = 54, padT = 16, padB = 6; // más espacio a la derecha y arriba para las etiquetas de precio
+  var pad = padL;
+  function X(t) { return padL + (t - t0) / (t1 - t0) * (w - padL - padR); }
+  function Y(p) { return padT + (1 - (p - pmin) / (pmax - pmin)) * (h - padT - padB); }
   var upTrend = pts[pts.length - 1][1] >= pts[0][1];
   var col = upTrend ? '#0ecb81' : '#f6465d';
+
+  // grid horizontal + etiquetas de precio a la derecha (estilo terminal de trading)
+  ctx.strokeStyle = 'rgba(132,142,156,.14)';
+  ctx.lineWidth = 1;
+  ctx.font = '9.5px ui-monospace,Menlo,Consolas,monospace';
+  ctx.fillStyle = '#5b6472';
+  ctx.textAlign = 'right';
+  for (var gl = 0; gl <= 3; gl++) {
+    var gy = padT + (h - padT - padB) * gl / 3;
+    var gp = pmax - (pmax - pmin) * gl / 3;
+    ctx.beginPath();
+    ctx.moveTo(padL, gy);
+    ctx.lineTo(w - padR + 4, gy);
+    ctx.stroke();
+    ctx.fillText(fmtChartPrice(gp), w - 4, gy + (gl === 0 ? 9 : (gl === 3 ? -1 : 3)));
+  }
+  ctx.textAlign = 'left';
 
   // línea guía al precio inicial del rango
   ctx.setLineDash([3, 3]);
   ctx.strokeStyle = 'rgba(132,142,156,.4)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(pad, Y(pts[0][1]));
-  ctx.lineTo(w - pad, Y(pts[0][1]));
+  ctx.moveTo(padL, Y(pts[0][1]));
+  ctx.lineTo(w - padR, Y(pts[0][1]));
   ctx.stroke();
   ctx.setLineDash([]);
 
