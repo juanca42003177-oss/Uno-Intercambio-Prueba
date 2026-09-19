@@ -1004,7 +1004,7 @@ async function fetchLivePrices() {
     for (var csym in chartState) {
       var cpx = prices[csym];
       if (cpx > 0) {
-        chartState[csym].live.push([nowMs, cpx]);
+        chartState[csym].live.push([nowMs, cpx, cpx, cpx, cpx]);
         if (chartState[csym].live.length > 180) chartState[csym].live.shift();
       }
     }
@@ -1267,11 +1267,15 @@ function renderPredictSection() {
     var chSym = symFromLabel(m.label);
     chartSymByMarket[m.id] = chSym;
     marketDeadlines[m.id] = { betDeadline: Number(m.betDeadline), resolveAt: Number(m.resolveAt), resolved: !!m.resolved };
+    var resolveWinMin = Math.max(1, Math.round((Number(m.resolveAt) - Number(m.betDeadline)) / 60));
+    var closeClock = new Date(Number(m.betDeadline) * 1000).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
+    var resolveClock = new Date(Number(m.resolveAt) * 1000).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
     html += '<div class="box mktCard">'
       + '<div class="mktTop">'
       +   '<div><h4>' + (m.label || 'Mercado') + '<span class="pill pillMuted mono">#' + m.id + '</span></h4>'
       +   '<div class="small" style="margin-top:5px">Pozo: <span class="mono" style="color:#eaecef;font-weight:700">$' + pot.toFixed(2) + '</span> USDC'
-      +   (m.resolved ? (' · ' + (m.upWon ? '<b style="color:var(--green)">▲ Ganó ALZA</b>' : '<b style="color:var(--red)">▼ Ganó BAJA</b>')) : '') + '</div></div>'
+      +   (m.resolved ? (' · ' + (m.upWon ? '<b style="color:var(--green)">▲ Ganó ALZA</b>' : '<b style="color:var(--red)">▼ Ganó BAJA</b>')) : '') + '</div>'
+      +   '<div class="small mono" style="margin-top:2px;color:var(--muted)">Cierra ' + closeClock + ' · Resuelve ' + resolveClock + ' (+' + resolveWinMin + 'm)</div></div>'
       +   (!m.resolved ? '<span class="pill" id="mktCountdown' + m.id + '">—</span>' : '')
       + '</div>';
 
@@ -1282,7 +1286,8 @@ function renderPredictSection() {
         + '<div id="chPrice' + m.id + '" class="mono" style="font-size:21px;font-weight:800;color:#eaecef;letter-spacing:-.5px;margin-top:2px">—</div></div>'
         + '<div id="chChange' + m.id + '" class="mono" style="font-size:12.5px;font-weight:700;text-align:right">—</div>'
         + '</div>'
-        + '<canvas id="chCanvas' + m.id + '" style="width:100%;height:120px;display:block;margin-top:8px"></canvas>'
+        + '<div id="chStat' + m.id + '" class="mono" style="font-size:10px;color:var(--muted);margin-top:2px">—</div>'
+        + '<canvas id="chCanvas' + m.id + '" style="width:100%;height:130px;display:block;margin-top:6px"></canvas>'
         + '<div style="display:flex;gap:6px;margin-top:10px">'
         + '<button onclick="setChartRange(' + m.id + ',\'15M\')" id="chRng15M' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">15M</button>'
         + '<button onclick="setChartRange(' + m.id + ',\'1H\')" id="chRng1H' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>'
@@ -1390,14 +1395,49 @@ function fmtChartPrice(p) {
 }
 
 function combinedChartPoints(sym) {
+  // cada punto es una vela [t, open, high, low, close]
   var st = chartState[sym] || {};
   var pts = (st.series || []).concat(st.live || []);
   pts.sort(function(a, b) { return a[0] - b[0]; });
-  // deduplicar puntos a menos de 60 s entre sí (quedarse con el último)
+  // deduplicar velas a menos de 60 s entre sí (quedarse con la última)
   var out = [];
   for (var i = 0; i < pts.length; i++) {
     if (!out.length || pts[i][0] - out[out.length - 1][0] > 60000) out.push(pts[i]);
     else out[out.length - 1] = pts[i];
+  }
+  return out;
+}
+
+// Agrupa velas en buckets para que nunca se dibujen más de ~targetCount en
+// el ancho disponible (si no, con 24h de velas de 5 min se verían como una
+// rayita ilegible en pantalla de celular).
+function aggregateCandles(candles, targetCount) {
+  if (candles.length <= targetCount) return candles;
+  var bucketSize = Math.ceil(candles.length / targetCount);
+  var out = [];
+  for (var i = 0; i < candles.length; i += bucketSize) {
+    var chunk = candles.slice(i, i + bucketSize);
+    if (!chunk.length) continue;
+    var o = chunk[0][1], c = chunk[chunk.length - 1][4];
+    var h = -Infinity, l = Infinity;
+    for (var j = 0; j < chunk.length; j++) {
+      if (chunk[j][2] > h) h = chunk[j][2];
+      if (chunk[j][3] < l) l = chunk[j][3];
+    }
+    out.push([chunk[chunk.length - 1][0], o, h, l, c]);
+  }
+  return out;
+}
+
+// media móvil simple sobre los cierres de las velas agregadas
+function movingAverage(candles, period) {
+  var out = new Array(candles.length).fill(null);
+  if (candles.length < period) return out;
+  var sum = 0;
+  for (var i = 0; i < candles.length; i++) {
+    sum += candles[i][4];
+    if (i >= period) sum -= candles[i - period][4];
+    if (i >= period - 1) out[i] = sum / period;
   }
   return out;
 }
@@ -1457,16 +1497,17 @@ function drawPredictChart(marketId, sym) {
   var st = ensureChartState(sym);
   var rangeMs = CHART_RANGES[st.range] || CHART_RANGES['1H'];
   var now = Date.now();
-  var pts = combinedChartPoints(sym).filter(function(p) { return p[0] >= now - rangeMs; });
+  var raw = combinedChartPoints(sym).filter(function(p) { return p[0] >= now - rangeMs; });
 
   // precio actual + cambio del rango
   var priceEl = document.getElementById('chPrice' + marketId);
   var changeEl = document.getElementById('chChange' + marketId);
-  var cur = prices[sym] || (pts.length ? pts[pts.length - 1][1] : 0);
+  var statEl = document.getElementById('chStat' + marketId);
+  var cur = prices[sym] || (raw.length ? raw[raw.length - 1][4] : 0);
   if (priceEl && cur > 0) priceEl.textContent = '$' + fmtChartPrice(cur);
   if (changeEl) {
-    if (pts.length >= 2) {
-      var first = pts[0][1];
+    if (raw.length >= 2) {
+      var first = raw[0][1];
       var chg = (cur - first) / first * 100;
       changeEl.innerHTML = (chg >= 0 ? '▲ +' : '▼ ') + chg.toFixed(2) + '%<br><span style="color:var(--muted);font-weight:400">' + st.range + '</span>';
       changeEl.style.color = chg >= 0 ? '#0ecb81' : '#f6465d';
@@ -1477,31 +1518,42 @@ function drawPredictChart(marketId, sym) {
 
   // dibujar canvas
   var dpr = window.devicePixelRatio || 1;
-  var w = cv.clientWidth || 300, h = 110;
+  var w = cv.clientWidth || 300, h = 130;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   var ctx = cv.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  if (pts.length < 2) {
+  if (raw.length < 2) {
     ctx.fillStyle = '#848e9c';
     ctx.font = '12px system-ui,sans-serif';
     ctx.fillText('Cargando gráfico de ' + sym + '…', 10, h / 2);
+    if (statEl) statEl.textContent = '';
     return;
   }
-  var t0 = now - rangeMs, t1 = now;
+
+  // máximo ~40 velas visibles en pantalla — legible en móvil
+  var candles = aggregateCandles(raw, 40);
+  var maFast = movingAverage(candles, Math.min(5, Math.max(2, Math.floor(candles.length / 4))));
+  var maSlow = movingAverage(candles, Math.min(20, Math.max(3, Math.floor(candles.length / 2))));
+
+  if (statEl) {
+    var hi = -Infinity, lo = Infinity;
+    for (var s = 0; s < candles.length; s++) { if (candles[s][2] > hi) hi = candles[s][2]; if (candles[s][3] < lo) lo = candles[s][3]; }
+    statEl.textContent = 'Máx $' + fmtChartPrice(hi) + '  ·  Mín $' + fmtChartPrice(lo);
+  }
+
+  var t0 = candles[0][0], t1 = now;
   var pmin = Infinity, pmax = -Infinity;
-  for (var i = 0; i < pts.length; i++) {
-    if (pts[i][1] < pmin) pmin = pts[i][1];
-    if (pts[i][1] > pmax) pmax = pts[i][1];
+  for (var i = 0; i < candles.length; i++) {
+    if (candles[i][3] < pmin) pmin = candles[i][3];
+    if (candles[i][2] > pmax) pmax = candles[i][2];
   }
   if (pmax === pmin) { pmax = pmin * 1.001 || 1; pmin = pmin * 0.999; }
-  var padL = 6, padR = 54, padT = 16, padB = 6; // más espacio a la derecha y arriba para las etiquetas de precio
-  var pad = padL;
+  var pad2 = (pmax - pmin) * 0.06; pmax += pad2; pmin -= pad2; // un poco de aire arriba/abajo
+  var padL = 6, padR = 54, padT = 10, padB = 6;
   function X(t) { return padL + (t - t0) / (t1 - t0) * (w - padL - padR); }
   function Y(p) { return padT + (1 - (p - pmin) / (pmax - pmin)) * (h - padT - padB); }
-  var upTrend = pts[pts.length - 1][1] >= pts[0][1];
-  var col = upTrend ? '#0ecb81' : '#f6465d';
 
   // grid horizontal + etiquetas de precio a la derecha (estilo terminal de trading)
   ctx.strokeStyle = 'rgba(132,142,156,.14)';
@@ -1520,45 +1572,42 @@ function drawPredictChart(marketId, sym) {
   }
   ctx.textAlign = 'left';
 
-  // línea guía al precio inicial del rango
-  ctx.setLineDash([3, 3]);
-  ctx.strokeStyle = 'rgba(132,142,156,.4)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padL, Y(pts[0][1]));
-  ctx.lineTo(w - padR, Y(pts[0][1]));
-  ctx.stroke();
-  ctx.setLineDash([]);
+  // ancho de cada vela según el espacio disponible
+  var plotW = w - padL - padR;
+  var slot = plotW / candles.length;
+  var bodyW = Math.max(2, slot * 0.62);
 
-  // área bajo la curva
-  var grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, upTrend ? 'rgba(14,203,129,.28)' : 'rgba(246,70,93,.28)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.beginPath();
-  ctx.moveTo(X(pts[0][0]), h - pad);
-  for (var j = 0; j < pts.length; j++) ctx.lineTo(X(pts[j][0]), Y(pts[j][1]));
-  ctx.lineTo(X(pts[pts.length - 1][0]), h - pad);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // línea del precio
-  ctx.beginPath();
-  for (var k = 0; k < pts.length; k++) {
-    var x = X(pts[k][0]), y = Y(pts[k][1]);
-    if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  // velas: mecha (línea alta-baja) + cuerpo (apertura-cierre)
+  for (var k = 0; k < candles.length; k++) {
+    var cd = candles[k];
+    var cx = padL + slot * (k + 0.5);
+    var up = cd[4] >= cd[1];
+    var col = up ? '#0ecb81' : '#f6465d';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, Y(cd[2]));
+    ctx.lineTo(cx, Y(cd[3]));
+    ctx.stroke();
+    var yO = Y(cd[1]), yC = Y(cd[4]);
+    var bodyTop = Math.min(yO, yC), bodyH = Math.max(1.5, Math.abs(yC - yO));
+    ctx.fillStyle = col;
+    ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
   }
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.stroke();
 
-  // punto del último precio
-  var lp = pts[pts.length - 1];
-  ctx.beginPath();
-  ctx.arc(X(lp[0]), Y(lp[1]), 3, 0, 2 * Math.PI);
-  ctx.fillStyle = col;
-  ctx.fill();
+  // medias móviles superpuestas (estilo terminal: rápida en amarillo, lenta en morado)
+  function drawMA(vals, color) {
+    ctx.beginPath();
+    var started = false;
+    for (var m = 0; m < vals.length; m++) {
+      if (vals[m] == null) continue;
+      var mx = padL + slot * (m + 0.5), my = Y(vals[m]);
+      if (!started) { ctx.moveTo(mx, my); started = true; } else ctx.lineTo(mx, my);
+    }
+    if (started) { ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.stroke(); }
+  }
+  drawMA(maFast, '#f0b90b');
+  drawMA(maSlow, '#8b5cf6');
 }
 
 async function doBet(marketId, up) {
