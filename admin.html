@@ -269,31 +269,41 @@ async function togglePause(){
 
 function predictStatus(html){ document.getElementById('predictStatus').innerHTML = html; }
 
+var Q4 = { syms: ['WLD','WBTC','ETH','CHAD'], i: 0, mode: null };
+
 async function createMarkets4(){
-  var btn = event.target; btn.disabled=true;
+  var btn = event.target;
   var mode = document.getElementById('pDuration').value;
-  if (mode === 'custom'){ predictStatus('<span class="err">Elige una duración fija (no personalizada) para el botón de 4.</span>'); btn.disabled=false; return; }
-  var p = P_DURATIONS[mode];
-  var syms = ['WLD','WBTC','ETH','CHAD'];
+  if (mode === 'custom'){ predictStatus('<span class="err">Elige una duración fija (no personalizada) para el botón de 4.</span>'); return; }
+  if (Q4.mode !== mode){ Q4.mode = mode; Q4.i = 0; }
+  if (Q4.i >= Q4.syms.length){ Q4.i = 0; } // ronda terminada: empieza otra
+  var p = P_DURATIONS[Q4.mode];
+  var sym = Q4.syms[Q4.i];
+  var label = sym + ' sube o baja - ' + p.name;
   var now = Math.floor(Date.now()/1000);
-  var ok = 0;
-  for (var i = 0; i < syms.length; i++){
-    var label = syms[i] + ' sube o baja - ' + p.name;
-    var betDeadline = now + p.betMin*60;
-    var resolveAt = betDeadline + p.extraMin*60;
-    predictStatus('Mercado ' + (i+1) + ' de 4 (' + syms[i] + '): acepta la transacción en tu wallet...');
-    try{
-      var tx = await predictContract.createMarket(label, betDeadline, resolveAt);
-      predictStatus('Mercado ' + (i+1) + ' de 4 (' + syms[i] + '): esperando red...');
-      await tx.wait();
-      ok++;
-    }catch(e){
-      predictStatus('<span class="err">Se detuvo en ' + syms[i] + ': ' + esc(e.message||String(e)) + '</span>');
-      break;
+  var betDeadline = now + p.betMin*60;
+  var resolveAt = betDeadline + p.extraMin*60;
+  btn.disabled = true;
+  try{
+    predictStatus('Creando ' + sym + ' (' + (Q4.i+1) + ' de 4)... acepta la transacción en tu wallet');
+    var tx = await predictContract.createMarket(label, betDeadline, resolveAt);
+    predictStatus(sym + ': esperando la red...');
+    await tx.wait();
+    Q4.i++;
+    if (Q4.i >= Q4.syms.length){
+      predictStatus('<span class="ok">✅ 4 de 4 mercados creados (' + esc(p.name) + '). ¡Ronda completa!</span>');
+      btn.textContent = '🚀 Crear WLD + WBTC + ETH + CHAD (4 seguidos)';
+      Q4.i = 0; Q4.mode = null;
+    } else {
+      var next = Q4.syms[Q4.i];
+      predictStatus('<span class="ok">✅ ' + sym + ' creado (' + Q4.i + '/4). Toca el botón de nuevo para crear <b>' + next + '</b></span>');
+      btn.textContent = '➡️ Siguiente: ' + next + ' (' + (Q4.i+1) + ' de 4)';
     }
+    await refreshMarkets();
+  }catch(e){
+    predictStatus('<span class="err">' + sym + ' no se creó: ' + esc(e.message||String(e)) + '. Toca el botón otra vez para reintentar.</span>');
   }
-  if (ok > 0){ predictStatus('<span class="ok">✅ ' + ok + ' de 4 mercados creados (' + esc(p.name) + ').</span>'); await refreshMarkets(); }
-  btn.disabled=false;
+  btn.disabled = false;
 }
 
 var P_DURATIONS = {
