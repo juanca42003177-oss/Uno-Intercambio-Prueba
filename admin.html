@@ -65,12 +65,24 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
 <div class="box" id="predictBox" style="display:none">
   <span class="tag">TRADING — CREAR MERCADO DE PREDICCIÓN</span>
   <div class="status">Los usuarios apuestan en USDC a ALZA o BAJA. 1% de comisión al resolver.</div>
-  <label>Nombre del mercado</label>
-  <input id="pLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min">
-  <label>Duración de apuestas (minutos)</label>
-  <input id="pBetMin" type="number" value="10">
-  <label>Minutos extra hasta resolver (después de cerrar apuestas)</label>
-  <input id="pResolveMin" type="number" value="5">
+  <label>Token</label>
+  <input id="pToken" type="text" value="WLD" placeholder="Ej: WLD">
+  <label>Duración</label>
+  <select id="pDuration" onchange="onDurChange()">
+    <option value="fast">⚡ Rápida — 10 min (resuelve +5 min)</option>
+    <option value="h1">🕐 1 hora — 50 min (resuelve +10 min)</option>
+    <option value="h24">📅 24 horas (resuelve +30 min)</option>
+    <option value="d3">🗓️ 3 días (resuelve +1 hora)</option>
+    <option value="custom">⚙️ Personalizada…</option>
+  </select>
+  <div id="pCustomBox" style="display:none">
+    <label>Nombre del mercado</label>
+    <input id="pLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min">
+    <label>Duración de apuestas (minutos)</label>
+    <input id="pBetMin" type="number" value="10">
+    <label>Minutos extra hasta resolver (después de cerrar apuestas)</label>
+    <input id="pResolveMin" type="number" value="5">
+  </div>
   <button onclick="createMarket()">➕ Crear mercado</button>
 
   <label style="margin-top:16px">Mínimo de apuesta actual: <b id="curMinBet">—</b> USDC</label>
@@ -256,12 +268,34 @@ async function togglePause(){
 
 function predictStatus(html){ document.getElementById('predictStatus').innerHTML = html; }
 
+var P_DURATIONS = {
+  fast:  { betMin: 10,   extraMin: 5,  name: '10 min' },
+  h1:    { betMin: 50,   extraMin: 10, name: '1 hora' },
+  h24:   { betMin: 1440, extraMin: 30, name: '24 horas' },
+  d3:    { betMin: 4320, extraMin: 60, name: '3 días' },
+};
+
+function onDurChange(){
+  document.getElementById('pCustomBox').style.display =
+    document.getElementById('pDuration').value === 'custom' ? 'block' : 'none';
+}
+
 async function createMarket(){
   var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
   try{
-    var label = document.getElementById('pLabel').value.trim();
-    var betMin = parseFloat(document.getElementById('pBetMin').value);
-    var resolveMin = parseFloat(document.getElementById('pResolveMin').value);
+    var mode = document.getElementById('pDuration').value;
+    var label, betMin, resolveMin;
+    if (mode === 'custom') {
+      label = document.getElementById('pLabel').value.trim();
+      betMin = parseFloat(document.getElementById('pBetMin').value);
+      resolveMin = parseFloat(document.getElementById('pResolveMin').value);
+    } else {
+      var p = P_DURATIONS[mode];
+      var sym = document.getElementById('pToken').value.trim().toUpperCase() || 'WLD';
+      label = sym + ' sube o baja — ' + p.name;
+      betMin = p.betMin;
+      resolveMin = p.extraMin;
+    }
     if(!label){ predictStatus('<span class="err">Escribe un nombre para el mercado.</span>'); btn.disabled=false; btn.textContent='➕ Crear mercado'; return; }
     if(!betMin || betMin <= 0 || !resolveMin || resolveMin <= 0){ predictStatus('<span class="err">Duraciones inválidas.</span>'); btn.disabled=false; btn.textContent='➕ Crear mercado'; return; }
     var now = Math.floor(Date.now()/1000);
