@@ -62,6 +62,20 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   <button class="sec" id="btnPause" onclick="togglePause()">⏸️ Pausar depósitos</button>
 </div>
 
+<div class="box" id="predictBox" style="display:none">
+  <span class="tag">TRADING — CREAR MERCADO DE PREDICCIÓN</span>
+  <div class="status">Los usuarios apuestan en USDC a ALZA o BAJA. 1% de comisión al resolver.</div>
+  <label>Nombre del mercado</label>
+  <input id="pLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min">
+  <label>Duración de apuestas (minutos)</label>
+  <input id="pBetMin" type="number" value="10">
+  <label>Minutos extra hasta resolver (después de cerrar apuestas)</label>
+  <input id="pResolveMin" type="number" value="5">
+  <button onclick="createMarket()">➕ Crear mercado</button>
+  <div class="status" id="predictStatus" style="margin-top:10px"></div>
+  <div id="marketsAdminList" style="margin-top:10px"></div>
+</div>
+
 <script>
 // ---- Bóvedas de Uno Trading ----
 // addr vacío = pendiente de despliegue (aparece en la lista pero no se puede administrar)
@@ -73,6 +87,13 @@ const VAULTS = [
 const OWNER = '0x49909C04B0C620CFe489b4C93B5A4A6312135E28';
 const CHAIN_ID = 480;
 const API_PRICES = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
+const PREDICT_ADDRESS = '0xa3c2071D00a35b783Eb2e5B46ceCFd4fFb1D5170';
+const PREDICT_ABI = [
+  'function createMarket(string label, uint64 betDeadline, uint64 resolveAt) returns (uint256)',
+  'function resolve(uint256 marketId, bool upWon)',
+  'function marketCount() view returns (uint256)',
+  'function marketSummary(uint256 marketId) view returns (string label, uint64 betDeadline, uint64 resolveAt, uint256 totalUp, uint256 totalDown, bool resolved, bool upWon, uint256 potAfterFee)'
+];
 const ABI = [
   'function minDeposit() view returns (uint256)',
   'function depositsPaused() view returns (bool)',
@@ -81,7 +102,7 @@ const ABI = [
   'function owner() view returns (address)'
 ];
 
-var provider, signer, vault = null, prices = {}, curVaultId = null;
+var provider, signer, vault = null, prices = {}, curVaultId = null, predictContract = null;
 var esc = function(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
 
 function setStatus(html){ document.getElementById('status').innerHTML = html; }
@@ -124,8 +145,11 @@ async function connect(){
     curVaultId = VAULTS[0].id;
     renderVaultSelect();
     document.getElementById('selBox').style.display='block';
+    document.getElementById('predictBox').style.display='block';
+    predictContract = new ethers.Contract(PREDICT_ADDRESS, PREDICT_ABI, signer);
     setStatus('<span class="ok">Dueño conectado.</span> Cargando datos...');
     await onVaultChange();
+    await refreshMarkets();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
 }
 
@@ -221,6 +245,79 @@ async function togglePause(){
     await refreshAll();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
   btn.disabled=false;
+}
+
+function predictStatus(html){ document.getElementById('predictStatus').innerHTML = html; }
+
+async function createMarket(){
+  var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
+  try{
+    var label = document.getElementById('pLabel').value.trim();
+    var betMin = parseFloat(document.getElementById('pBetMin').value);
+    var resolveMin = parseFloat(document.getElementById('pResolveMin').value);
+    if(!label){ predictStatus('<span class="err">Escribe un nombre para el mercado.</span>'); btn.disabled=false; btn.textContent='➕ Crear mercado'; return; }
+    if(!betMin || betMin <= 0 || !resolveMin || resolveMin <= 0){ predictStatus('<span class="err">Duraciones inválidas.</span>'); btn.disabled=false; btn.textContent='➕ Crear mercado'; return; }
+    var now = Math.floor(Date.now()/1000);
+    var betDeadline = now + Math.round(betMin*60);
+    var resolveAt = betDeadline + Math.round(resolveMin*60);
+    predictStatus('Acepta la transacción en tu wallet...');
+    var tx = await predictContract.createMarket(label, betDeadline, resolveAt);
+    predictStatus('Esperando confirmación de la red...');
+    await tx.wait();
+    predictStatus('<span class="ok">✅ Mercado "' + esc(label) + '" creado. Apuestas abiertas ' + betMin + ' min, se resuelve ' + resolveMin + ' min después.</span>');
+    document.getElementById('pLabel').value = '';
+    await refreshMarkets();
+  }catch(e){ predictStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+  btn.disabled=false; btn.textContent='➕ Crear mercado';
+}
+
+async function refreshMarkets(){
+  if(!predictContract) return;
+  try{
+    var count = Number(await predictContract.marketCount());
+    var html = '';
+    for(var i=count-1; i>=0 && i>=count-8; i--){
+      var m = await predictContract.marketSummary(i);
+      var now = Math.floor(Date.now()/1000);
+      var totalUp = Number(ethers.utils.formatUnits(m.totalUp, 6));
+      var totalDown = Number(ethers.utils.formatUnits(m.totalDown, 6));
+      var estadoTxt, accion = '';
+      if(m.resolved){
+        estadoTxt = '✅ Resuelto: ganó ' + (m.upWon ? 'ALZA' : 'BAJA');
+      } else if(now < m.betDeadline){
+        estadoTxt = '🟢 Apuestas abiertas';
+      } else if(now < m.resolveAt){
+        estadoTxt = '⏳ Apuestas cerradas, esperando hora de resolver';
+      } else {
+        estadoTxt = '🟡 Listo para resolver';
+        accion = '<div style="display:flex;gap:8px;margin-top:8px">'
+          + '<button style="background:var(--green);color:#fff" onclick="resolveMarket(' + i + ', true)">Ganó ALZA</button>'
+          + '<button style="background:var(--red);color:#fff" onclick="resolveMarket(' + i + ', false)">Ganó BAJA</button>'
+          + '</div>';
+      }
+      html += '<div class="box" style="margin:8px 0;padding:12px">'
+        + '<b>#' + i + ' — ' + esc(m.label) + '</b>'
+        + '<div class="status" style="margin-top:4px">' + estadoTxt + '</div>'
+        + '<div class="status">Pozo: ' + totalUp.toFixed(2) + ' USDC alza / ' + totalDown.toFixed(2) + ' USDC baja</div>'
+        + accion
+        + '</div>';
+    }
+    document.getElementById('marketsAdminList').innerHTML = html || '<div class="status">Aún no has creado ningún mercado.</div>';
+  }catch(e){ /* silencioso, no es crítico */ }
+}
+
+async function resolveMarket(id, upWon){
+  var btn = event.target;
+  var box = btn.closest('div').parentElement;
+  box.querySelectorAll('button').forEach(function(b){ b.disabled = true; });
+  try{
+    predictStatus('Acepta la transacción en tu wallet...');
+    var tx = await predictContract.resolve(id, upWon);
+    predictStatus('Esperando confirmación de la red...');
+    await tx.wait();
+    predictStatus('<span class="ok">✅ Mercado #' + id + ' resuelto: ganó ' + (upWon?'ALZA':'BAJA') + '.</span>');
+    await refreshMarkets();
+  }catch(e){ predictStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
 }
 
 // carga precios al abrir para tenerlos listos
