@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Uno Trading — Admin de la Bóveda</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+:root{--bg:#0b0e14;--card:#151a21;--card2:#1e232c;--yellow:#f0b90b;--green:#0ecb81;--red:#f6465d;--muted:#848e9c;--border:#2b313a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:#eaecef;padding:16px;max-width:480px;margin:0 auto;padding-bottom:60px}
+h1{font-size:19px;margin:10px 0 2px}
+.sub{color:var(--muted);font-size:12.5px;margin-bottom:18px}
+.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin:12px 0}
+.status{font-size:13px;color:var(--muted);line-height:1.6}
+.addr{font-family:monospace;font-size:12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px;word-break:break-all;margin:8px 0}
+button{width:100%;padding:15px;border-radius:12px;border:0;background:var(--yellow);color:#111;font-weight:800;font-size:15px;cursor:pointer;margin-top:8px}
+button:disabled{background:#3a4150;color:#848e9c;cursor:not-allowed}
+button.sec{background:var(--card2);color:#eaecef;border:1px solid var(--border)}
+.ok{color:var(--green);font-weight:800}
+.err{color:var(--red);font-weight:700}
+.tag{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:6px;background:rgba(240,185,11,.15);color:var(--yellow);margin-bottom:6px}
+input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;color:#eaecef;font-size:16px;font-weight:700;outline:none}
+label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10px 0 4px}
+</style>
+</head>
+<body>
+<div style="text-align:center;margin-top:10px">
+  <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#f0b90b,#ff9d00);display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#111">UT</div>
+  <h1>Uno Trading</h1>
+  <div class="sub">Admin de la Bóveda — ajustar mínimo y pausa</div>
+</div>
+
+<div class="box">
+  <div class="status" id="status">Toca "Conectar Wallet". Debe ser la wallet dueña (0x4990...5E28).</div>
+  <div class="addr" id="addrBox" style="display:none"></div>
+  <button id="btnConnect" onclick="connect()">🔗 Conectar Wallet</button>
+</div>
+
+<div class="box" id="minBox" style="display:none">
+  <span class="tag">MÍNIMO DE DEPÓSITO</span>
+  <div class="status">Mínimo actual en cadena: <b id="curMin">—</b><br><span id="curMinUsd" style="font-size:12px"></span></div>
+  <label>Precio de AXO ahora: <span id="axoPrice">—</span> (lo trae el servidor de precios)</label>
+  <label>Mínimo en dólares (USD)</label>
+  <input id="usdInput" type="number" value="15" step="0.5" oninput="previewMin()">
+  <div class="status" id="preview" style="margin-top:8px"></div>
+  <button onclick="setMin()">💾 Actualizar mínimo</button>
+</div>
+
+<div class="box" id="pauseBox" style="display:none">
+  <span class="tag">OPCIONAL</span>
+  <div class="status">Pausa NUEVOS depósitos si algo se ve raro. Los retiros jamás se bloquean.</div>
+  <div class="status">Estado: <b id="pauseState">—</b></div>
+  <button class="sec" id="btnPause" onclick="togglePause()">⏸️ Pausar depósitos</button>
+</div>
+
+<script>
+const VAULT = '0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71';
+const OWNER = '0x49909C04B0C620CFe489b4C93B5A4A6312135E28';
+const CHAIN_ID = 480;
+const API_PRICES = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
+const ABI = [
+  'function minDeposit() view returns (uint256)',
+  'function depositsPaused() view returns (bool)',
+  'function setMinDeposit(uint256 v)',
+  'function setDepositsPaused(bool p)',
+  'function owner() view returns (address)'
+];
+
+var provider, signer, vault, axoPrice = 0, esc = function(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; };
+
+function setStatus(html){ document.getElementById('status').innerHTML = html; }
+
+async function connect(){
+  try{
+    if(!window.ethereum){ setStatus('<span class="err">Ábrelo en el navegador de MetaMask.</span>'); return; }
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    var net = await provider.getNetwork();
+    if(net.chainId !== CHAIN_ID){
+      await window.ethereum.request({method:'wallet_addEthereumChain', params:[{
+        chainId:'0x1e0', chainName:'World Chain',
+        nativeCurrency:{name:'ETH', symbol:'ETH', decimals:18},
+        rpcUrls:['https://rpc.worldchain.org'], blockExplorerUrls:['https://worldscan.org']
+      }]});
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      net = await provider.getNetwork();
+      if(net.chainId !== CHAIN_ID){ setStatus('<span class="err">Cambia a World Chain en tu wallet.</span>'); return; }
+    }
+    await provider.send('eth_requestAccounts', []);
+    signer = provider.getSigner();
+    var addr = await signer.getAddress();
+    document.getElementById('addrBox').style.display='block';
+    document.getElementById('addrBox').textContent = addr;
+    vault = new ethers.Contract(VAULT, ABI, signer);
+    if(addr.toLowerCase() !== OWNER.toLowerCase()){
+      setStatus('<span class="err">Esta wallet NO es la dueña del contrato. Usa 0x4990...5E28.</span>');
+      return;
+    }
+    document.getElementById('minBox').style.display='block';
+    document.getElementById('pauseBox').style.display='block';
+    setStatus('<span class="ok">Dueño conectado.</span> Cargando datos...');
+    await refreshAll();
+  }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+}
+
+async function refreshAll(){
+  var min = await vault.minDeposit();
+  var paused = await vault.depositsPaused();
+  var minAxo = Number(ethers.utils.formatEther(min));
+  document.getElementById('curMin').textContent = minAxo.toLocaleString('es', {maximumFractionDigits:2}) + ' AXO';
+  try{
+    var res = await fetch(API_PRICES);
+    var data = await res.json();
+    axoPrice = (data && data.prices && data.prices.AXO) || 0;
+  }catch(e){ axoPrice = 0; }
+  document.getElementById('axoPrice').textContent = axoPrice ? ('$' + axoPrice) : 'no disponible';
+  if(axoPrice){
+    document.getElementById('curMinUsd').textContent = '≈ $' + (minAxo * axoPrice).toFixed(2) + ' al precio actual';
+  }
+  document.getElementById('pauseState').textContent = paused ? 'PAUSADO (sin depósitos nuevos)' : 'ACTIVO (acepta depósitos)';
+  document.getElementById('btnPause').textContent = paused ? '▶️ Reactivar depósitos' : '⏸️ Pausar depósitos';
+  previewMin();
+  setStatus('<span class="ok">Dueño conectado.</span> Todo listo.');
+}
+
+function previewMin(){
+  var usd = parseFloat(document.getElementById('usdInput').value);
+  var el = document.getElementById('preview');
+  if(!usd || !axoPrice){ el.textContent = ''; return; }
+  var axo = usd / axoPrice;
+  el.innerHTML = 'Equivale a <b>' + axo.toLocaleString('es', {maximumFractionDigits:0}) + ' AXO</b>';
+}
+
+async function setMin(){
+  var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
+  try{
+    var usd = parseFloat(document.getElementById('usdInput').value);
+    if(!usd || usd <= 0){ setStatus('<span class="err">Escribe un monto válido.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
+    if(!axoPrice){ setStatus('<span class="err">No hay precio de AXO ahora. Intenta de nuevo.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo'; return; }
+    var axo = usd / axoPrice;
+    var raw = ethers.utils.parseEther(axo.toFixed(18).toString());
+    setStatus('Acepta la transacción en tu wallet...');
+    var tx = await vault.setMinDeposit(raw);
+    setStatus('Esperando confirmación de la red...');
+    await tx.wait();
+    setStatus('<span class="ok">✅ Mínimo actualizado a ~$' + usd + ' (' + axo.toLocaleString('es', {maximumFractionDigits:0}) + ' AXO).</span>');
+    await refreshAll();
+  }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+  btn.disabled=false; btn.textContent='💾 Actualizar mínimo';
+}
+
+async function togglePause(){
+  var btn = event.target; btn.disabled=true;
+  try{
+    var paused = await vault.depositsPaused();
+    setStatus('Acepta la transacción en tu wallet...');
+    var tx = await vault.setDepositsPaused(!paused);
+    setStatus('Esperando confirmación...');
+    await tx.wait();
+    setStatus('<span class="ok">✅ ' + (paused ? 'Depósitos reactivados.' : 'Depósitos pausados.') + '</span>');
+    await refreshAll();
+  }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>
