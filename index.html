@@ -1069,6 +1069,12 @@ function renderVaultCards() {
       + '<div class="phaseNote">' + v.note + ' Cobro: <b>20% solo de la ganancia</b> al retirar. Bloqueo: <b id="vLockDays_' + v.id + '">30</b> días. Mínimo: <b id="vMin_' + v.id + '">—</b> ' + v.symA + '.</div>'
       + '<div class="small" style="margin-top:10px">Cantidad de ' + v.symA + ' a depositar</div>'
       + '<input id="vaultAmt_' + v.id + '" type="number" placeholder="0.0" style="font-size:16px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">'
+      + '<div class="perc">'
+      + '<button onclick="setVaultPerc(\'' + v.id + '\',25,event)">25%</button>'
+      + '<button onclick="setVaultPerc(\'' + v.id + '\',50,event)">50%</button>'
+      + '<button onclick="setVaultPerc(\'' + v.id + '\',75,event)">75%</button>'
+      + '<button onclick="setVaultPerc(\'' + v.id + '\',100,event)">100%</button>'
+      + '</div>'
       + '<div class="small">Saldo ' + v.symA + ': <span id="vaultBal_' + v.id + '">0</span></div>'
       + '<button class="btnY" onclick="doVaultDeposit(\'' + v.id + '\')">🏦 Depositar en la Bóveda</button>'
       + '<div id="vaultPaused_' + v.id + '" style="display:none" class="phaseNote">⚠️ Depósitos nuevos pausados temporalmente. Los retiros siguen funcionando normal.</div>'
@@ -1131,13 +1137,28 @@ function updateVaultCardData() {
   }
 }
 
+function setVaultPerc(vaultId, p, ev) {
+  var cfg = vaultCfg(vaultId);
+  if (!cfg) return;
+  if (ev && ev.target) {
+    var card = ev.target.closest('.perc');
+    if (card) card.querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
+    ev.target.classList.add('active');
+  }
+  var raw = rawBalances[cfg.symA];
+  var bal = raw ? (Number(raw) / 1e18) : (balances[cfg.symA] || 0);
+  var amt = bal * p / 100;
+  document.getElementById('vaultAmt_' + vaultId).value = amt > 0 ? amt.toFixed(6) : '';
+}
+
 async function doVaultDeposit(vaultId) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
   var cfg = vaultCfg(vaultId);
   if (!cfg || !cfg.addr) return showOk('Bóveda no disponible', '⚠️');
   var amount = parseFloat(document.getElementById('vaultAmt_' + vaultId).value);
   if (!amount || amount <= 0) return showOk('Cantidad inválida', '⚠️');
-  var bal = balances[cfg.symA] || 0;
+  var rawBalStr = rawBalances[cfg.symA];
+  var bal = rawBalStr ? (Number(rawBalStr) / 1e18) : (balances[cfg.symA] || 0);
   if (bal < amount) return showOk('Saldo de ' + cfg.symA + ' insuficiente', '⚠️');
   var vData = (vaultPredictData && vaultPredictData.vaults || []).find(function(v){ return v.id === vaultId; });
   if (vData) {
@@ -1151,6 +1172,8 @@ async function doVaultDeposit(vaultId) {
   }
   var tokenAddr = resolveAddr(cfg.symA);
   var amountRaw = toRawAmount(amount, 18);
+  var rawBal = rawBalStr ? BigInt(rawBalStr) : null;
+  if (rawBal && amountRaw >= rawBal) amountRaw = rawBal;
   try {
     showOk('Confirma el depósito en World App...', '⏳');
     var txs = [
