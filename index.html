@@ -186,12 +186,25 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 
     <div id="adminCreateBox" style="display:none" class="box" style="background:rgba(240,185,11,.08);border-color:rgba(240,185,11,.35)">
       <b style="color:var(--yellow)">Panel de administrador</b>
-      <div class="small" style="margin:8px 0 4px">Nombre del mercado</div>
-      <input id="mLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
-      <div class="small" style="margin:10px 0 4px">Duración de apuestas (minutos)</div>
-      <input id="mBetMin" type="number" value="10" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
-      <div class="small" style="margin:10px 0 4px">Minutos extra hasta resolver (después de cerrar apuestas)</div>
-      <input id="mResolveMin" type="number" value="5" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      <div class="small" style="margin:8px 0 4px">Token</div>
+      <select id="mToken" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef"></select>
+      <div class="small" style="margin:10px 0 4px">Duración</div>
+      <select id="mDuration" onchange="onDurationChange()" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+        <option value="fast">⚡ Rápida — 10 min de apuestas (resuelve 5 min después)</option>
+        <option value="h1">🕐 1 hora — 50 min de apuestas (resuelve 10 min después)</option>
+        <option value="h24">📅 24 horas — apuestas todo el día (resuelve 30 min después)</option>
+        <option value="d3">🗓️ 3 días — apuestas 3 días (resuelve 1 hora después)</option>
+        <option value="custom">⚙️ Personalizada…</option>
+      </select>
+      <div id="mCustomBox" style="display:none">
+        <div class="small" style="margin:10px 0 4px">Nombre del mercado</div>
+        <input id="mLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+        <div class="small" style="margin:10px 0 4px">Duración de apuestas (minutos)</div>
+        <input id="mBetMin" type="number" value="10" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+        <div class="small" style="margin:10px 0 4px">Minutos extra hasta resolver</div>
+        <input id="mResolveMin" type="number" value="5" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+      </div>
+      <div class="small" id="mPreview" style="margin:10px 0;background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:8px;color:var(--muted)">—</div>
       <button class="btnY" onclick="doCreateMarket()">➕ Crear mercado</button>
     </div>
 
@@ -1238,6 +1251,7 @@ function renderPredictSection() {
   var adminBox = document.getElementById('adminCreateBox');
   var isAdmin = currentAccount && currentAccount.toLowerCase() === RESOLVER_ADDRESS;
   if (adminBox) adminBox.style.display = isAdmin ? 'block' : 'none';
+  if (isAdmin) fillMarketTokenSelect();
 
   var minBetEl = document.getElementById('predMinBetTxt');
   if (minBetEl) {
@@ -1676,12 +1690,67 @@ async function doResolve(marketId, upWon) {
   }
 }
 
+// duraciones fijas del panel de admin — betMin = minutos de apuestas,
+// extraMin = minutos extra hasta resolver, name = texto en la etiqueta
+var MARKET_DURATIONS = {
+  fast:  { betMin: 10,     extraMin: 5,  name: '10 min' },
+  h1:    { betMin: 50,     extraMin: 10, name: '1 hora' },
+  h24:   { betMin: 1440,   extraMin: 30, name: '24 horas' },
+  d3:    { betMin: 4320,   extraMin: 60, name: '3 días' },
+};
+
+function fillMarketTokenSelect() {
+  var sel = document.getElementById('mToken');
+  if (!sel || sel.options.length > 0) return;
+  var syms = Object.keys(CONTRACTS).filter(function(s) { return s !== 'USDC'; });
+  for (var i = 0; i < syms.length; i++) {
+    var o = document.createElement('option');
+    o.value = syms[i];
+    o.textContent = syms[i];
+    if (syms[i] === 'WLD') o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.onchange = updateMarketPreview;
+  updateMarketPreview();
+}
+
+function onDurationChange() {
+  var custom = document.getElementById('mDuration').value === 'custom';
+  document.getElementById('mCustomBox').style.display = custom ? 'block' : 'none';
+  updateMarketPreview();
+}
+
+function updateMarketPreview() {
+  var pv = document.getElementById('mPreview');
+  if (!pv) return;
+  var dur = marketDurSelection();
+  if (!dur) { pv.textContent = '—'; return; }
+  pv.textContent = 'Se creará: "' + dur.label + '" · Apuestas ' + dur.betTxt + ' · Resuelve ' + dur.resolveTxt;
+}
+
+function marketDurSelection() {
+  var sym = document.getElementById('mToken') ? document.getElementById('mToken').value : 'WLD';
+  var mode = document.getElementById('mDuration') ? document.getElementById('mDuration').value : 'fast';
+  if (mode === 'custom') {
+    var label = document.getElementById('mLabel') ? document.getElementById('mLabel').value.trim() : '';
+    var betMin = parseFloat(document.getElementById('mBetMin') ? document.getElementById('mBetMin').value : '0');
+    var resolveMin = parseFloat(document.getElementById('mResolveMin') ? document.getElementById('mResolveMin').value : '1');
+    if (!label || !betMin || betMin <= 0) return null;
+    return { label: label, betMin: betMin, extraMin: (resolveMin || 1),
+             betTxt: betMin + ' min', resolveTxt: '+' + (resolveMin || 1) + ' min' };
+  }
+  var p = MARKET_DURATIONS[mode];
+  return { label: sym + ' sube o baja — ' + p.name, betMin: p.betMin, extraMin: p.extraMin,
+           betTxt: p.betMin + ' min', resolveTxt: '+' + p.extraMin + ' min' };
+}
+
 async function doCreateMarket() {
-  var label = document.getElementById('mLabel').value.trim();
-  var betMin = parseFloat(document.getElementById('mBetMin').value);
-  var resolveMin = parseFloat(document.getElementById('mResolveMin').value);
-  if (!label) return showOk('Escribe un nombre para el mercado', '⚠️');
-  if (!betMin || betMin <= 0) return showOk('Duración inválida', '⚠️');
+  fillMarketTokenSelect();
+  var sel = marketDurSelection();
+  if (!sel) return showOk('Completa los datos del mercado', '⚠️');
+  var label = sel.label;
+  var betMin = sel.betMin;
+  var resolveMin = sel.extraMin;
   var now = Math.floor(Date.now() / 1000);
   var betDeadline = now + Math.round(betMin * 60);
   var resolveAt = betDeadline + Math.round((resolveMin || 1) * 60);
