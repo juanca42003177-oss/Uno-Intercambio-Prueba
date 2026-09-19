@@ -198,7 +198,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       </select>
       <div id="mCustomBox" style="display:none">
         <div class="small" style="margin:10px 0 4px">Nombre del mercado</div>
-        <input id="mLabel" type="text" placeholder="Ej: WLD sube o baja — 10 min" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+        <input id="mLabel" type="text" placeholder="Ej: WLD sube o baja - 10 min" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
         <div class="small" style="margin:10px 0 4px">Duración de apuestas (minutos)</div>
         <input id="mBetMin" type="number" value="10" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
         <div class="small" style="margin:10px 0 4px">Minutos extra hasta resolver</div>
@@ -1284,15 +1284,11 @@ function renderPredictSection() {
     var chSym = symFromLabel(m.label);
     chartSymByMarket[m.id] = chSym;
     marketDeadlines[m.id] = { betDeadline: Number(m.betDeadline), resolveAt: Number(m.resolveAt), resolved: !!m.resolved };
-    var resolveWinMin = Math.max(1, Math.round((Number(m.resolveAt) - Number(m.betDeadline)) / 60));
-    var closeClock = new Date(Number(m.betDeadline) * 1000).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
-    var resolveClock = new Date(Number(m.resolveAt) * 1000).toLocaleTimeString('es-GT', { hour: '2-digit', minute: '2-digit' });
     html += '<div class="box mktCard">'
       + '<div class="mktTop">'
-      +   '<div><h4>' + (m.label || 'Mercado') + '<span class="pill pillMuted mono">#' + m.id + '</span></h4>'
+      +   '<div><h4>' + (m.label || 'Mercado') + '</h4>'
       +   '<div class="small" style="margin-top:5px">Pozo: <span class="mono" style="color:#eaecef;font-weight:700">$' + pot.toFixed(2) + '</span> USDC'
-      +   (m.resolved ? (' · ' + (m.upWon ? '<b style="color:var(--green)">▲ Ganó ALZA</b>' : '<b style="color:var(--red)">▼ Ganó BAJA</b>')) : '') + '</div>'
-      +   '<div class="small mono" style="margin-top:2px;color:var(--muted)">Cierra ' + closeClock + ' · Resuelve ' + resolveClock + ' (+' + resolveWinMin + 'm)</div></div>'
+      +   (m.resolved ? (' · ' + (m.upWon ? '<b style="color:var(--green)">▲ Ganó ALZA</b>' : '<b style="color:var(--red)">▼ Ganó BAJA</b>')) : '') + '</div></div>'
       +   (!m.resolved ? '<span class="pill" id="mktCountdown' + m.id + '">—</span>' : '')
       + '</div>';
 
@@ -1743,7 +1739,7 @@ function marketDurSelection() {
              betTxt: betMin + ' min', resolveTxt: '+' + (resolveMin || 1) + ' min' };
   }
   var p = MARKET_DURATIONS[mode];
-  return { label: sym + ' sube o baja — ' + p.name, betMin: p.betMin, extraMin: p.extraMin,
+  return { label: sym + ' sube o baja - ' + p.name, betMin: p.betMin, extraMin: p.extraMin,
            betTxt: p.betMin + ' min', resolveTxt: '+' + p.extraMin + ' min' };
 }
 
