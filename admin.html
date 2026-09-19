@@ -72,6 +72,10 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   <label>Minutos extra hasta resolver (después de cerrar apuestas)</label>
   <input id="pResolveMin" type="number" value="5">
   <button onclick="createMarket()">➕ Crear mercado</button>
+
+  <label style="margin-top:16px">Mínimo de apuesta actual: <b id="curMinBet">—</b> USDC</label>
+  <input id="minBetInput" type="number" placeholder="Nuevo mínimo en USDC" step="0.5">
+  <button class="sec" onclick="setMinBet()">💾 Actualizar mínimo de apuesta</button>
   <div class="status" id="predictStatus" style="margin-top:10px"></div>
   <div id="marketsAdminList" style="margin-top:10px"></div>
 </div>
@@ -87,12 +91,14 @@ const VAULTS = [
 const OWNER = '0x49909C04B0C620CFe489b4C93B5A4A6312135E28';
 const CHAIN_ID = 480;
 const API_PRICES = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
-const PREDICT_ADDRESS = '0xa3c2071D00a35b783Eb2e5B46ceCFd4fFb1D5170';
+const PREDICT_ADDRESS = '0xea460F483D60ffD95bAbA204f63E6B71eB3C0e0E';
 const PREDICT_ABI = [
   'function createMarket(string label, uint64 betDeadline, uint64 resolveAt) returns (uint256)',
   'function resolve(uint256 marketId, bool upWon)',
   'function marketCount() view returns (uint256)',
-  'function marketSummary(uint256 marketId) view returns (string label, uint64 betDeadline, uint64 resolveAt, uint256 totalUp, uint256 totalDown, bool resolved, bool upWon, uint256 potAfterFee)'
+  'function marketSummary(uint256 marketId) view returns (string label, uint64 betDeadline, uint64 resolveAt, uint256 totalUp, uint256 totalDown, bool resolved, bool upWon, uint256 potAfterFee)',
+  'function minBet() view returns (uint256)',
+  'function setMinBet(uint256 v)'
 ];
 const ABI = [
   'function minDeposit() view returns (uint256)',
@@ -150,6 +156,7 @@ async function connect(){
     setStatus('<span class="ok">Dueño conectado.</span> Cargando datos...');
     await onVaultChange();
     await refreshMarkets();
+    await refreshMinBet();
   }catch(e){ setStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
 }
 
@@ -269,6 +276,31 @@ async function createMarket(){
     await refreshMarkets();
   }catch(e){ predictStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
   btn.disabled=false; btn.textContent='➕ Crear mercado';
+}
+
+async function refreshMinBet(){
+  if(!predictContract) return;
+  try{
+    var mb = await predictContract.minBet();
+    document.getElementById('curMinBet').textContent = ethers.utils.formatUnits(mb, 6);
+  }catch(e){ /* silencioso */ }
+}
+
+async function setMinBet(){
+  var btn = event.target; btn.disabled=true; btn.textContent='Esperando firma...';
+  try{
+    var v = parseFloat(document.getElementById('minBetInput').value);
+    if(!v || v <= 0){ predictStatus('<span class="err">Escribe un monto válido.</span>'); btn.disabled=false; btn.textContent='💾 Actualizar mínimo de apuesta'; return; }
+    var raw = ethers.utils.parseUnits(v.toString(), 6);
+    predictStatus('Acepta la transacción en tu wallet...');
+    var tx = await predictContract.setMinBet(raw);
+    predictStatus('Esperando confirmación de la red...');
+    await tx.wait();
+    predictStatus('<span class="ok">✅ Mínimo de apuesta actualizado a $' + v + ' USDC.</span>');
+    document.getElementById('minBetInput').value = '';
+    await refreshMinBet();
+  }catch(e){ predictStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+  btn.disabled=false; btn.textContent='💾 Actualizar mínimo de apuesta';
 }
 
 async function refreshMarkets(){
