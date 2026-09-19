@@ -30,7 +30,7 @@ contract UnoPredict {
     address public immutable resolver;   // Juan (fase 2b: oráculo)
 
     uint256 public constant FEE_BPS   = 100;   // 1% del pozo total
-    uint256 public constant MIN_BET   = 10e6;  // $10 USDC mínimo por apuesta
+    uint256 public minBet             = 1e6;   // mínimo por apuesta, ajustable por el resolver (empieza en $1 USDC)
     uint64  public constant MIN_MARKET_DURATION = 2 minutes; // apuestas mínimas
 
     struct Market {
@@ -56,6 +56,7 @@ contract UnoPredict {
 
     error NotResolver();
     error BetsClosed();
+    error BadMinBet();
     error AlreadyResolved();
     error NotResolvedYet();
     error TooSmall();
@@ -98,7 +99,7 @@ contract UnoPredict {
         Market storage m = markets[marketId];
         if (block.timestamp > m.betDeadline) revert BetsClosed();
         if (m.resolved) revert AlreadyResolved();
-        if (amount < MIN_BET) revert TooSmall();
+        if (amount < minBet) revert TooSmall();
 
         if (!betToken.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
 
@@ -110,6 +111,12 @@ contract UnoPredict {
             betsDown[marketId][msg.sender] += amount;
         }
         emit BetPlaced(marketId, msg.sender, up, amount);
+    }
+
+    // ---------------- AJUSTAR MÍNIMO DE APUESTA (Juan) ----------------
+    function setMinBet(uint256 v) external onlyResolver {
+        if (v == 0) revert BadMinBet();
+        minBet = v;
     }
 
     // ---------------- RESOLVER (Juan, con precio público) ----------------
