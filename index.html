@@ -158,24 +158,12 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
     <h3 style="text-align:center">🏦 Bóveda de Staking</h3>
     <div class="small" style="text-align:center;margin-bottom:4px">Tus tokens trabajan en pools reales de Uniswap</div>
 
-    <div class="box" style="background:rgba(14,203,129,.08);border-color:rgba(14,203,129,.4)">
-      <span class="badge badgeLive">ACTIVA</span>
-      <h4 style="margin-top:8px">AXO / WLD — Bóveda REAL</h4>
-      <div class="phaseNote">Depositas AXO, el contrato mete liquidez real al pool AXO/WLD. Cobro: <b>20% solo de la ganancia</b> al retirar. Bloqueo: <b id="vLockDays">30</b> días. Mínimo: <b id="vMinDeposit">—</b> AXO.</div>
-      <div class="small" style="margin-top:10px">Cantidad de AXO a depositar</div>
-      <input id="vaultAmt" type="number" placeholder="0.0" style="font-size:16px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
-      <div class="small">Saldo AXO: <span id="vaultBal">0</span></div>
-      <button class="btnY" onclick="doVaultDeposit()">🏦 Depositar en la Bóveda</button>
-      <div id="vaultPausedNote" style="display:none" class="phaseNote" style="color:var(--red)">⚠️ Depósitos nuevos pausados temporalmente. Los retiros siguen funcionando normal.</div>
-    </div>
+    <div id="vaultCards"></div>
 
     <div id="myDepositsBox" style="display:none">
       <div class="small" style="margin:14px 4px 6px;font-weight:700">Mis depósitos</div>
       <div id="myDepositsList"></div>
     </div>
-
-    <div class="small" style="margin:14px 4px 6px;font-weight:700">Próximos pools (Fase 2)</div>
-    <div id="vaultList"></div>
     <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef">← Volver</button>
   </div>
 </div>
@@ -243,7 +231,7 @@ const WETH_ADDRESS   = '0x4200000000000000000000000000000000000006';
 const WLD_ADDRESS    = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
 const FEE_WALLET     = '0x019001d46cd3155ef045a41f4c359c040595438c';
 // --- Bóveda y Predicciones (contratos reales, World Chain) ---
-const VAULT_ADDRESS    = '0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71';
+// Las direcciones de las bóvedas están en el array VAULTS (más abajo).
 const PREDICT_ADDRESS  = '0xa3c2071D00a35b783Eb2e5B46ceCFd4fFb1D5170';
 const RESOLVER_ADDRESS = '0x49909c04b0c620cfe489b4c93b5a4a6312135e28'; // wallet de Juan
 const API_VAULT_PREDICT = 'https://solene-539c4635.base44.app/functions/getVaultPredictInfo';
@@ -1025,30 +1013,15 @@ window.addEventListener('load', function() {
 
 <script>
 // ============ BÓVEDA Y PREDICCIONES REALES (contratos en cadena) ============
-// Pools que llegarán en Fase 2 (aún no tienen contrato desplegado).
-var VAULTS_FASE2 = [
-  {name:'WLD / ETH',   detail:'Pool V3 fee 0.05%', syms:['WLD','ETH']},
-  {name:'WBTC / ETH',  detail:'Pool V3 fee 0.3%',  syms:['WBTC','ETH']},
-  {name:'WBTC / USDC', detail:'Pool V3 fee 0.05%', syms:['WBTC','USDC']},
-  {name:'uSOL / ETH',  detail:'Pool V3 fee 0.3%',  syms:['uSOL','ETH']},
-  {name:'WLD / USDC',  detail:'Pool V3 fee 1%',    syms:['WLD','USDC']},
-  {name:'DNA / ETH',   detail:'Pool V2 (tax 15% — variante 2b pendiente)', syms:['DNA','ETH']},
-  {name:'uDOGE / ETH', detail:'Pool V3 fee 0.3%',  syms:['uDOGE','ETH']},
-  {name:'uXRP / ETH',  detail:'Pool V3 fee 0.3%',  syms:['uXRP','ETH']}
+// ---- Bóvedas reales de Uno Trading (contratos en cadena) ----
+// addr vacío = bóveda aún no desplegada: no se muestra en la app.
+var VAULTS = [
+  {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.'},
+  {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.'},
+  {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.'}
 ];
-function renderVaultsFase2() {
-  var el = document.getElementById('vaultList');
-  if (!el) return;
-  var html = '';
-  for (var i = 0; i < VAULTS_FASE2.length; i++) {
-    var v = VAULTS_FASE2[i];
-    html += '<div class="vault"><div style="display:flex;justify-content:space-between;align-items:center">'
-      + '<div><h4>' + v.name + '</h4><div class="small">' + v.detail + '</div></div>'
-      + '<span class="badge">FASE 2</span></div></div>';
-  }
-  el.innerHTML = html;
-}
-renderVaultsFase2();
+function activeVaults() { return VAULTS.filter(function(v){ return v.addr; }); }
+function vaultCfg(id) { for (var i = 0; i < VAULTS.length; i++) { if (VAULTS[i].id === id) return VAULTS[i]; } return null; }
 
 // ---- codificación de llamadas a los contratos ----
 function encodeUint(n) { return BigInt(n).toString(16).padStart(64, '0'); }
@@ -1081,72 +1054,103 @@ async function loadVaultPredict() {
   } catch (e) {
     vaultPredictData = null;
   }
-  renderVaultCard();
+  renderVaultCards();
   renderPredictSection();
 }
 
-function renderVaultCard() {
-  var minEl = document.getElementById('vMinDeposit');
-  var lockEl = document.getElementById('vLockDays');
-  var pausedNote = document.getElementById('vaultPausedNote');
-  var balEl = document.getElementById('vaultBal');
-  if (balEl) balEl.innerText = (balances.AXO || 0).toFixed(4);
-  if (!vaultPredictData || !vaultPredictData.vault) return;
-  var v = vaultPredictData.vault;
-  if (minEl) {
-    var minAxo = Number(v.minDeposit) / 1e18;
-    var axoUsd = prices.AXO || 0;
-    minEl.innerText = minAxo.toLocaleString('es', {maximumFractionDigits:0})
-      + (axoUsd ? (' (≈$' + (minAxo * axoUsd).toFixed(2) + ')') : '');
-  }
-  if (lockEl) lockEl.innerText = v.lockPeriodDays;
-  if (pausedNote) pausedNote.style.display = v.depositsPaused ? 'block' : 'none';
+function renderVaultCards() {
+  var el = document.getElementById('vaultCards');
+  if (!el) return;
+  var html = '';
+  activeVaults().forEach(function(v){
+    html += '<div class="box" style="background:rgba(14,203,129,.08);border-color:rgba(14,203,129,.4)">'
+      + '<span class="badge badgeLive">ACTIVA</span>'
+      + '<h4 style="margin-top:8px">' + v.name + ' — Bóveda REAL</h4>'
+      + '<div class="phaseNote">' + v.note + ' Cobro: <b>20% solo de la ganancia</b> al retirar. Bloqueo: <b id="vLockDays_' + v.id + '">30</b> días. Mínimo: <b id="vMin_' + v.id + '">—</b> ' + v.symA + '.</div>'
+      + '<div class="small" style="margin-top:10px">Cantidad de ' + v.symA + ' a depositar</div>'
+      + '<input id="vaultAmt_' + v.id + '" type="number" placeholder="0.0" style="font-size:16px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">'
+      + '<div class="small">Saldo ' + v.symA + ': <span id="vaultBal_' + v.id + '">0</span></div>'
+      + '<button class="btnY" onclick="doVaultDeposit(\'' + v.id + '\')">🏦 Depositar en la Bóveda</button>'
+      + '<div id="vaultPaused_' + v.id + '" style="display:none" class="phaseNote">⚠️ Depósitos nuevos pausados temporalmente. Los retiros siguen funcionando normal.</div>'
+      + '</div>';
+  });
+  el.innerHTML = html;
+  updateVaultCardData();
+}
+
+function updateVaultCardData() {
+  var vs = (vaultPredictData && vaultPredictData.vaults) || [];
+  activeVaults().forEach(function(v){
+    var balEl = document.getElementById('vaultBal_' + v.id);
+    if (balEl) balEl.innerText = (balances[v.symA] || 0).toFixed(4);
+  });
+  vs.forEach(function(v){
+    var cfg = vaultCfg(v.id);
+    if (!cfg) return;
+    var minEl = document.getElementById('vMin_' + v.id);
+    if (minEl) {
+      var minTok = Number(v.minDeposit) / 1e18;
+      var usd = prices[cfg.symA] || 0;
+      minEl.innerText = minTok.toLocaleString('es', {maximumFractionDigits:0})
+        + (usd ? (' (≈$' + (minTok * usd).toFixed(2) + ')') : '');
+    }
+    var lockEl = document.getElementById('vLockDays_' + v.id);
+    if (lockEl) lockEl.innerText = v.lockPeriodDays;
+    var pn = document.getElementById('vaultPaused_' + v.id);
+    if (pn) pn.style.display = v.depositsPaused ? 'block' : 'none';
+  });
 
   var box = document.getElementById('myDepositsBox');
   var list = document.getElementById('myDepositsList');
   if (!box || !list) return;
-  if (!currentAccount || !v.deposits || v.deposits.length === 0) {
-    box.style.display = 'none';
-    return;
-  }
-  box.style.display = 'block';
   var now = Math.floor(Date.now() / 1000);
   var html = '';
-  v.deposits.forEach(function(d) {
-    if (Number(d.liquidity) === 0) return; // ya retirado
-    var principal = (Number(d.principalA) / 1e18).toFixed(4);
-    var unlocked = d.unlocked;
-    var remain = Math.max(0, d.unlockAt - now);
-    var days = Math.ceil(remain / 86400);
-    html += '<div class="vault"><div style="display:flex;justify-content:space-between;align-items:center">'
-      + '<div><h4>' + principal + ' AXO depositados</h4>'
-      + '<div class="small">' + (unlocked ? 'Disponible para retirar' : ('Se desbloquea en ' + days + ' día(s)')) + '</div></div>'
-      + (unlocked
-          ? '<button class="btnY" style="width:auto;padding:10px 16px;margin:0" onclick="doVaultWithdraw(' + d.index + ')">Retirar</button>'
-          : '<span class="badge">🔒</span>')
-      + '</div></div>';
+  vs.forEach(function(v){
+    var cfg = vaultCfg(v.id);
+    if (!cfg) return;
+    (v.deposits || []).forEach(function(d){
+      if (Number(d.liquidity) === 0) return; // ya retirado
+      var principal = (Number(d.principalA) / 1e18).toFixed(4);
+      var unlocked = d.unlocked;
+      var remain = Math.max(0, d.unlockAt - now);
+      var days = Math.ceil(remain / 86400);
+      html += '<div class="vault"><div style="display:flex;justify-content:space-between;align-items:center">'
+        + '<div><h4>' + principal + ' ' + cfg.symA + ' — ' + cfg.name + '</h4>'
+        + '<div class="small">' + (unlocked ? 'Disponible para retirar' : ('Se desbloquea en ' + days + ' día(s)')) + '</div></div>'
+        + (unlocked
+            ? '<button class="btnY" style="width:auto;padding:10px 16px;margin:0" onclick="doVaultWithdraw(\'' + v.id + '\',' + d.index + ')">Retirar</button>'
+            : '<span class="badge">🔒</span>')
+        + '</div></div>';
+    });
   });
-  list.innerHTML = html || '<div class="small">No tienes depósitos activos.</div>';
+  if (html) {
+    box.style.display = 'block';
+    list.innerHTML = html;
+  } else {
+    box.style.display = 'none';
+  }
 }
 
-async function doVaultDeposit() {
+async function doVaultDeposit(vaultId) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
-  var amount = parseFloat(document.getElementById('vaultAmt').value);
+  var cfg = vaultCfg(vaultId);
+  if (!cfg || !cfg.addr) return showOk('Bóveda no disponible', '⚠️');
+  var amount = parseFloat(document.getElementById('vaultAmt_' + vaultId).value);
   if (!amount || amount <= 0) return showOk('Cantidad inválida', '⚠️');
-  var bal = balances.AXO || 0;
-  if (bal < amount) return showOk('Saldo de AXO insuficiente', '⚠️');
-  var axoAddr = resolveAddr('AXO');
+  var bal = balances[cfg.symA] || 0;
+  if (bal < amount) return showOk('Saldo de ' + cfg.symA + ' insuficiente', '⚠️');
+  var tokenAddr = resolveAddr(cfg.symA);
   var amountRaw = toRawAmount(amount, 18);
   try {
     showOk('Confirma el depósito en World App...', '⏳');
     var txs = [
-      { to: axoAddr, data: encodeApprove(VAULT_ADDRESS, 0n), value: '0x0' },
-      { to: axoAddr, data: encodeApprove(VAULT_ADDRESS, amountRaw), value: '0x0' },
-      { to: VAULT_ADDRESS, data: encodeDeposit(amountRaw), value: '0x0' }
+      { to: tokenAddr, data: encodeApprove(cfg.addr, 0n), value: '0x0' },
+      { to: tokenAddr, data: encodeApprove(cfg.addr, amountRaw), value: '0x0' },
+      { to: cfg.addr, data: encodeDeposit(amountRaw), value: '0x0' }
     ];
     var result = await MiniKit.sendTransaction({ chainId: 480, transactions: txs });
     if (result && result.data && result.data.userOpHash) {
-      showOk('¡Depósito realizado! Se bloqueará 30 días.', '✅');
+      showOk('¡Depósito realizado! Se bloqueará ' + ((vaultPredictData && vaultPredictData.vaults && vaultPredictData.vaults[0] && vaultPredictData.vaults[0].lockPeriodDays) || 30) + ' días.', '✅');
       fastRefreshAfterTx();
       setTimeout(loadVaultPredict, 3000);
     } else {
@@ -1157,13 +1161,15 @@ async function doVaultDeposit() {
   }
 }
 
-async function doVaultWithdraw(idx) {
+async function doVaultWithdraw(vaultId, idx) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+  var cfg = vaultCfg(vaultId);
+  if (!cfg || !cfg.addr) return showOk('Bóveda no disponible', '⚠️');
   try {
     showOk('Confirma el retiro en World App...', '⏳');
     var result = await MiniKit.sendTransaction({
       chainId: 480,
-      transactions: [{ to: VAULT_ADDRESS, data: encodeWithdraw(idx), value: '0x0' }]
+      transactions: [{ to: cfg.addr, data: encodeWithdraw(idx), value: '0x0' }]
     });
     if (result && result.data && result.data.userOpHash) {
       showOk('¡Retiro realizado!', '✅');
