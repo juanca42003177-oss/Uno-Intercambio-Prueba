@@ -1017,8 +1017,8 @@ window.addEventListener('load', function() {
 // addr vacío = bóveda aún no desplegada: no se muestra en la app.
 var VAULTS = [
   {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.'},
-  {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.'},
-  {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.'}
+  {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'0x185aAda41c13aA76340774f64368d807f8EA08EB', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.'},
+  {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'0x996a3931fd159D41f8E2428472153A8e768C6106', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.'}
 ];
 function activeVaults() { return VAULTS.filter(function(v){ return v.addr; }); }
 function vaultCfg(id) { for (var i = 0; i < VAULTS.length; i++) { if (VAULTS[i].id === id) return VAULTS[i]; } return null; }
