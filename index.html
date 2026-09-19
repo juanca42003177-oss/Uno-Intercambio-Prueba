@@ -1139,6 +1139,16 @@ async function doVaultDeposit(vaultId) {
   if (!amount || amount <= 0) return showOk('Cantidad inválida', '⚠️');
   var bal = balances[cfg.symA] || 0;
   if (bal < amount) return showOk('Saldo de ' + cfg.symA + ' insuficiente', '⚠️');
+  var vData = (vaultPredictData && vaultPredictData.vaults || []).find(function(v){ return v.id === vaultId; });
+  if (vData) {
+    var minTok = Number(vData.minDeposit) / 1e18;
+    if (amount < minTok) {
+      return showOk('El mínimo de esta bóveda es ' + minTok.toLocaleString('es', {maximumFractionDigits:0}) + ' ' + cfg.symA, '⚠️');
+    }
+    if (vData.depositsPaused) {
+      return showOk('Los depósitos de esta bóveda están pausados temporalmente', '⚠️');
+    }
+  }
   var tokenAddr = resolveAddr(cfg.symA);
   var amountRaw = toRawAmount(amount, 18);
   try {
