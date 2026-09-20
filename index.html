@@ -140,7 +140,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       <div class="small" id="tUsd" style="margin-top:4px"></div>
     </div>
     <div class="box" style="font-size:13px">
-      <div style="display:flex;justify-content:space-between"><span>Comisión (<span id="feePctLabel">0.3</span>%):</span><b id="feeUno">$0.00</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Comisión (<span id="feePctLabel">0.3</span>%):</span><b id="feeVal">$0.00</b></div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-weight:800;border-top:1px dashed var(--border);padding-top:6px"><span>Total comisión:</span><b id="totalCommission">$0.00</b></div>
       <div id="lowLiqWarn" class="small" style="margin-top:8px;color:#f0b90b;display:none"></div>
     </div>
@@ -289,7 +289,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       <div style="font-weight:800;color:#f0b90b">🔄 Swap</div>
       <div class="small" style="margin-top:4px;line-height:1.5">Intercambia más de 15 tokens reales con precios en vivo y liquidez verificada, directo de tu wallet de World App.</div>
     </div>
-    <button class="btnY" style="width:100%;margin-top:16px" onclick="document.getElementById('welcome').style.display='none';localStorage.setItem('unoDragonWelcome','1')">¡Entendido, a operar! 🚀</button>
+    <button class="btnY" style="width:100%;margin-top:16px" onclick="document.getElementById('welcome').style.display='none';localStorage.setItem('dragonWelcomeKey','1')">¡Entendido, a operar! 🚀</button>
   </div>
 </div>
 <div id="modal" class="modal" onclick="this.style.display='none'">
@@ -302,7 +302,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 
 <script>
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
-if (!localStorage.getItem('unoDragonWelcome')) setTimeout(showWelcome, 600);
+if (!localStorage.getItem('dragonWelcomeKey')) setTimeout(showWelcome, 600);
 const SWAP_ROUTER_V3 = '0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6';
 const SWAP_ROUTER_V2 = '0x541aB7c31A119441eF3575F6973277DE0eF460bd';
 const WETH_ADDRESS   = '0x4200000000000000000000000000000000000006';
@@ -720,7 +720,7 @@ function calc() {
 
   if (amt <= 0) {
     document.getElementById('tAmt').value = '0';
-    document.getElementById('feeUno').innerText = '$0.00';
+    document.getElementById('feeVal').innerText = '$0.00';
     document.getElementById('totalCommission').innerText = '$0.00';
     document.getElementById('fUsd').innerText = '';
     document.getElementById('tUsd').innerText = '';
@@ -734,7 +734,7 @@ function calc() {
   // Estimado instantáneo con precios de referencia (puede ser impreciso en
   // tokens poco líquidos). Se corrige abajo con la cotización real del pool.
   document.getElementById('tAmt').value = formatCrypto(usdOut / pt);
-  document.getElementById('feeUno').innerText = '$' + fee.toFixed(4);
+  document.getElementById('feeVal').innerText = '$' + fee.toFixed(4);
   document.getElementById('totalCommission').innerText = '$' + fee.toFixed(4);
   document.getElementById('fUsd').innerText = '≈ $' + usd.toFixed(4);
   // El $ de "recibes" se calcula como el valor en dólares que realmente
@@ -1116,7 +1116,7 @@ window.addEventListener('load', function() {
 
 <script>
 // ============ BÓVEDA Y PREDICCIONES REALES (contratos en cadena) ============
-// ---- Bóvedas reales de Uno Trading (contratos en cadena) ----
+// ---- Bóvedas reales de Dragon Trade (contratos en cadena) ----
 // addr vacío = bóveda aún no desplegada: no se muestra en la app.
 var VAULTS = [
   {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.'},
