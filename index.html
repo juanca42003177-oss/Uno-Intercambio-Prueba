@@ -1612,36 +1612,34 @@ function paintCandleChart(cv, sym, rangeKey) {
   var first = raw[0][1];
   result.chg = (cur - first) / first * 100;
 
-  // máximo ~40 velas visibles en pantalla chica, ~70 en el modal grande — legible siempre
-  var targetCount = w > 340 ? 70 : 40;
+  // gráfico de área simple (estilo apps de trading serias): una sola línea de
+  // cierres + relleno degradado abajo. Sin velas ni medias móviles — antes se
+  // veían demasiadas líneas superpuestas que no ayudaban a leer el precio.
+  var targetCount = w > 340 ? 90 : 60;
   var candles = aggregateCandles(raw, targetCount);
-  var maFast = movingAverage(candles, Math.min(5, Math.max(2, Math.floor(candles.length / 4))));
-  var maSlow = movingAverage(candles, Math.min(20, Math.max(3, Math.floor(candles.length / 2))));
+  var closes = candles.map(function(c) { return c[4]; });
+  if (cur > 0) closes[closes.length - 1] = cur; // el último punto siempre es el precio en vivo exacto
 
   var hi = -Infinity, lo = Infinity;
-  for (var s = 0; s < candles.length; s++) { if (candles[s][2] > hi) hi = candles[s][2]; if (candles[s][3] < lo) lo = candles[s][3]; }
+  for (var s = 0; s < closes.length; s++) { if (closes[s] > hi) hi = closes[s]; if (closes[s] < lo) lo = closes[s]; }
   result.hi = hi; result.lo = lo;
 
-  var t0 = candles[0][0], t1 = now;
-  var pmin = Infinity, pmax = -Infinity;
-  for (var i = 0; i < candles.length; i++) {
-    if (candles[i][3] < pmin) pmin = candles[i][3];
-    if (candles[i][2] > pmax) pmax = candles[i][2];
-  }
+  var pmin = lo, pmax = hi;
   if (pmax === pmin) { pmax = pmin * 1.001 || 1; pmin = pmin * 0.999; }
-  var pad2 = (pmax - pmin) * 0.06; pmax += pad2; pmin -= pad2; // un poco de aire arriba/abajo
+  var pad2 = (pmax - pmin) * 0.08; pmax += pad2; pmin -= pad2; // aire arriba/abajo
   var padL = 6, padR = 54, padT = 10, padB = 6;
-  function X(t) { return padL + (t - t0) / (t1 - t0) * (w - padL - padR); }
-  function Y(p) { return padT + (1 - (p - pmin) / (pmax - pmin)) * (h - padT - padB); }
+  var plotW = w - padL - padR, plotH = h - padT - padB;
+  function X(i) { return padL + (closes.length <= 1 ? 0 : (i / (closes.length - 1)) * plotW); }
+  function Y(p) { return padT + (1 - (p - pmin) / (pmax - pmin)) * plotH; }
 
-  // grid horizontal + etiquetas de precio a la derecha (estilo terminal de trading)
+  // grid horizontal + etiquetas de precio a la derecha
   ctx.strokeStyle = 'rgba(132,142,156,.14)';
   ctx.lineWidth = 1;
   ctx.font = '9.5px ui-monospace,Menlo,Consolas,monospace';
   ctx.fillStyle = '#5b6472';
   ctx.textAlign = 'right';
   for (var gl = 0; gl <= 3; gl++) {
-    var gy = padT + (h - padT - padB) * gl / 3;
+    var gy = padT + plotH * gl / 3;
     var gp = pmax - (pmax - pmin) * gl / 3;
     ctx.beginPath();
     ctx.moveTo(padL, gy);
@@ -1651,42 +1649,52 @@ function paintCandleChart(cv, sym, rangeKey) {
   }
   ctx.textAlign = 'left';
 
-  // ancho de cada vela según el espacio disponible
-  var plotW = w - padL - padR;
-  var slot = plotW / candles.length;
-  var bodyW = Math.max(2, slot * 0.62);
+  // color único según la tendencia del rango visible (verde/rojo), como
+  // cualquier app de trading — nada de líneas amarillas y moradas cruzadas.
+  var up = result.chg >= 0;
+  var lineColor = up ? '#0ecb81' : '#f6465d';
+  var fillTop = up ? 'rgba(14,203,129,.28)' : 'rgba(246,70,93,.28)';
+  var fillBottom = up ? 'rgba(14,203,129,0)' : 'rgba(246,70,93,0)';
 
-  // velas: mecha (línea alta-baja) + cuerpo (apertura-cierre)
-  for (var k = 0; k < candles.length; k++) {
-    var cd = candles[k];
-    var cx = padL + slot * (k + 0.5);
-    var up = cd[4] >= cd[1];
-    var col = up ? '#0ecb81' : '#f6465d';
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 1;
+  // curva suave (Catmull-Rom simplificado con curvas cuadráticas por punto medio)
+  function pathThrough() {
     ctx.beginPath();
-    ctx.moveTo(cx, Y(cd[2]));
-    ctx.lineTo(cx, Y(cd[3]));
-    ctx.stroke();
-    var yO = Y(cd[1]), yC = Y(cd[4]);
-    var bodyTop = Math.min(yO, yC), bodyH = Math.max(1.5, Math.abs(yC - yO));
-    ctx.fillStyle = col;
-    ctx.fillRect(cx - bodyW / 2, bodyTop, bodyW, bodyH);
-  }
-
-  // medias móviles superpuestas (estilo terminal: rápida en amarillo, lenta en morado)
-  function drawMA(vals, color) {
-    ctx.beginPath();
-    var started = false;
-    for (var m = 0; m < vals.length; m++) {
-      if (vals[m] == null) continue;
-      var mx = padL + slot * (m + 0.5), my = Y(vals[m]);
-      if (!started) { ctx.moveTo(mx, my); started = true; } else ctx.lineTo(mx, my);
+    ctx.moveTo(X(0), Y(closes[0]));
+    for (var i = 1; i < closes.length; i++) {
+      var xPrev = X(i - 1), yPrev = Y(closes[i - 1]);
+      var xCur = X(i), yCur = Y(closes[i]);
+      var xMid = (xPrev + xCur) / 2, yMid = (yPrev + yCur) / 2;
+      ctx.quadraticCurveTo(xPrev, yPrev, xMid, yMid);
     }
-    if (started) { ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.stroke(); }
+    var last = closes.length - 1;
+    ctx.lineTo(X(last), Y(closes[last]));
   }
-  drawMA(maFast, '#f0b90b');
-  drawMA(maSlow, '#8b5cf6');
+
+  // relleno degradado bajo la curva
+  pathThrough();
+  ctx.lineTo(X(closes.length - 1), padT + plotH);
+  ctx.lineTo(X(0), padT + plotH);
+  ctx.closePath();
+  var grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+  grad.addColorStop(0, fillTop);
+  grad.addColorStop(1, fillBottom);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // la línea de precio encima del relleno
+  pathThrough();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // punto final resaltado = precio actual en vivo
+  var lastX = X(closes.length - 1), lastY = Y(closes[closes.length - 1]);
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = lineColor;
+  ctx.fill();
+
   return result;
 }
 
@@ -1946,10 +1954,6 @@ async function doCreateMarket() {
       <button onclick="setModalRange('1H')" id="chModalRng1H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>
       <button onclick="setModalRange('6H')" id="chModalRng6H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">6H</button>
       <button onclick="setModalRange('24H')" id="chModalRng24H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">24H</button>
-    </div>
-    <div style="display:flex;gap:14px;margin-top:12px;font-size:10.5px;color:var(--muted);justify-content:center">
-      <span><span style="display:inline-block;width:10px;height:2px;background:#f0b90b;vertical-align:middle"></span> Media rápida</span>
-      <span><span style="display:inline-block;width:10px;height:2px;background:#8b5cf6;vertical-align:middle"></span> Media lenta</span>
     </div>
   </div>
 </div>
