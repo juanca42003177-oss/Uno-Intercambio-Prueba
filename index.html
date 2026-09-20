@@ -1695,6 +1695,33 @@ function paintCandleChart(cv, sym, rangeKey) {
   ctx.fillStyle = lineColor;
   ctx.fill();
 
+  // recuadro con el PRECIO EXACTO al final de la línea (igual que Binance):
+  // línea punteada hasta el borde derecho + una etiqueta sólida con el número,
+  // así no hay ninguna duda de en qué precio está la moneda ahora mismo.
+  var boxY = Math.max(padT + 9, Math.min(padT + plotH - 9, lastY));
+  ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(w - padR + 2, boxY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  var priceLabel = fmtChartPrice(cur);
+  ctx.font = 'bold 10.5px ui-monospace,Menlo,Consolas,monospace';
+  var boxW = Math.max(padR - 3, ctx.measureText(priceLabel).width + 10);
+  var boxH = 17;
+  var boxX = w - boxW - 1;
+  ctx.fillStyle = lineColor;
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(boxX, boxY - boxH / 2, boxW, boxH, 3); } else { ctx.rect(boxX, boxY - boxH / 2, boxW, boxH); }
+  ctx.fill();
+  ctx.fillStyle = '#0b0e11';
+  ctx.textAlign = 'center';
+  ctx.fillText(priceLabel, boxX + boxW / 2, boxY + 3.6);
+  ctx.textAlign = 'left';
+
   return result;
 }
 
