@@ -381,12 +381,15 @@ function toRawAmount(val, decimals) {
   return BigInt(integer + fraction);
 }
 
-async function sendTelegramNotification(montoUsd) {
+async function sendTelegramNotification(montoUsd, kind, extra) {
   try {
     await fetch(API_NOTIFY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ montoUsd: montoUsd, wallet: currentAccount, handle: currentUserHandle })
+      body: JSON.stringify({
+        montoUsd: montoUsd, wallet: currentAccount, handle: currentUserHandle,
+        app: 'dragon', kind: kind || 'swap', extra: extra || ''
+      })
     });
   } catch (e) {
     console.error('Error enviando notificación:', e);
@@ -1284,6 +1287,8 @@ async function doVaultDeposit(vaultId) {
     var result = await MiniKit.sendTransaction({ chainId: 480, transactions: txs });
     if (result && result.data && result.data.userOpHash) {
       showOk('¡Depósito realizado! Se bloqueará ' + ((vaultPredictData && vaultPredictData.vaults && vaultPredictData.vaults[0] && vaultPredictData.vaults[0].lockPeriodDays) || 30) + ' días.', '✅');
+      var depUsd = amount * (prices[cfg.symA] || 0);
+      sendTelegramNotification(depUsd, 'vault', cfg.symA);
       fastRefreshAfterTx();
       setTimeout(loadVaultPredict, 3000);
     } else {
@@ -1711,6 +1716,9 @@ async function doBet(marketId, up) {
     var result = await MiniKit.sendTransaction({ chainId: 480, transactions: txs });
     if (result && result.data && result.data.userOpHash) {
       showOk('¡Apuesta registrada!', '✅');
+      var betMkt = (vaultPredictData && vaultPredictData.predict && vaultPredictData.predict.markets || []).find(function(m){ return m.id === marketId; });
+      var betSym = betMkt ? symFromLabel(betMkt.label) : '';
+      sendTelegramNotification(amount, 'bet', (betSym || 'mercado') + ' ' + (up ? 'ALZA' : 'BAJA'));
       fastRefreshAfterTx();
       setTimeout(loadVaultPredict, 3000);
     } else {
