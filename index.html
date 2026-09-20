@@ -1374,7 +1374,8 @@ function renderPredictSection() {
         + '<div id="chChange' + m.id + '" class="mono" style="font-size:12.5px;font-weight:700;text-align:right">—</div>'
         + '</div>'
         + '<div id="chStat' + m.id + '" class="mono" style="font-size:10px;color:var(--muted);margin-top:2px">—</div>'
-        + '<canvas id="chCanvas' + m.id + '" style="width:100%;height:130px;display:block;margin-top:6px"></canvas>'
+        + '<canvas id="chCanvas' + m.id + '" onclick="openChartModal(' + m.id + ')" style="width:100%;height:130px;display:block;margin-top:6px;cursor:pointer"></canvas>'
+        + '<div style="text-align:center;font-size:9.5px;color:var(--muted);margin-top:4px;opacity:.8">Toca el gráfico para verlo en grande</div>'
         + '<div style="display:flex;gap:6px;margin-top:10px">'
         + '<button onclick="setChartRange(' + m.id + ',\'15M\')" id="chRng15M' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">15M</button>'
         + '<button onclick="setChartRange(' + m.id + ',\'1H\')" id="chRng1H' + m.id + '" style="flex:1;font-size:11px;padding:6px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>'
@@ -1458,11 +1459,14 @@ var _chartSymsSorted = null;
 
 function symFromLabel(label) {
   if (!_chartSymsSorted) {
+    // ordenar por longitud del simbolo EN MAYUSCULAS (uSOL/uDOGE/uXRP tienen
+    // la 'u' en minuscula, y comparar contra la etiqueta en mayusculas
+    // siempre fallaba para esos 3 -> nunca se les dibujaba el grafico).
     _chartSymsSorted = Object.keys(CONTRACTS).sort(function(a, b) { return b.length - a.length; });
   }
   var up = String(label || '').toUpperCase();
   for (var i = 0; i < _chartSymsSorted.length; i++) {
-    if (up.indexOf(_chartSymsSorted[i]) >= 0) return _chartSymsSorted[i];
+    if (up.indexOf(_chartSymsSorted[i].toUpperCase()) >= 0) return _chartSymsSorted[i];
   }
   return null;
 }
@@ -1576,59 +1580,47 @@ function drawAllPredictCharts() {
     var sy = chartSymByMarket[mid];
     if (sy) drawPredictChart(mid, sy);
   }
+  if (chartModal.open) drawModalChart();
 }
 
-function drawPredictChart(marketId, sym) {
-  var cv = document.getElementById('chCanvas' + marketId);
-  if (!cv) return;
+// núcleo de dibujo compartido entre la tarjeta chica del mercado y el
+// modal de pantalla completa — mismos datos, mismo cálculo, solo cambia
+// el canvas destino y su tamaño.
+function paintCandleChart(cv, sym, rangeKey) {
   var st = ensureChartState(sym);
-  var rangeMs = CHART_RANGES[st.range] || CHART_RANGES['1H'];
+  var rangeMs = CHART_RANGES[rangeKey] || CHART_RANGES['1H'];
   var now = Date.now();
   var raw = combinedChartPoints(sym).filter(function(p) { return p[0] >= now - rangeMs; });
 
-  // precio actual + cambio del rango
-  var priceEl = document.getElementById('chPrice' + marketId);
-  var changeEl = document.getElementById('chChange' + marketId);
-  var statEl = document.getElementById('chStat' + marketId);
-  var cur = prices[sym] || (raw.length ? raw[raw.length - 1][4] : 0);
-  if (priceEl && cur > 0) priceEl.textContent = '$' + fmtChartPrice(cur);
-  if (changeEl) {
-    if (raw.length >= 2) {
-      var first = raw[0][1];
-      var chg = (cur - first) / first * 100;
-      changeEl.innerHTML = (chg >= 0 ? '▲ +' : '▼ ') + chg.toFixed(2) + '%<br><span style="color:var(--muted);font-weight:400">' + st.range + '</span>';
-      changeEl.style.color = chg >= 0 ? '#0ecb81' : '#f6465d';
-    } else {
-      changeEl.innerHTML = '<span style="color:var(--muted)">cargando…</span>';
-    }
-  }
-
-  // dibujar canvas
   var dpr = window.devicePixelRatio || 1;
-  var w = cv.clientWidth || 300, h = 130;
+  var w = cv.clientWidth || 300, h = cv.clientHeight || 130;
   cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
   var ctx = cv.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
+  var cur = prices[sym] || (raw.length ? raw[raw.length - 1][4] : 0);
+  var result = { cur: cur, chg: null, hi: null, lo: null, sym: sym, ready: raw.length >= 2 };
+
   if (raw.length < 2) {
     ctx.fillStyle = '#848e9c';
     ctx.font = '12px system-ui,sans-serif';
     ctx.fillText('Cargando gráfico de ' + sym + '…', 10, h / 2);
-    if (statEl) statEl.textContent = '';
-    return;
+    return result;
   }
 
-  // máximo ~40 velas visibles en pantalla — legible en móvil
-  var candles = aggregateCandles(raw, 40);
+  var first = raw[0][1];
+  result.chg = (cur - first) / first * 100;
+
+  // máximo ~40 velas visibles en pantalla chica, ~70 en el modal grande — legible siempre
+  var targetCount = w > 340 ? 70 : 40;
+  var candles = aggregateCandles(raw, targetCount);
   var maFast = movingAverage(candles, Math.min(5, Math.max(2, Math.floor(candles.length / 4))));
   var maSlow = movingAverage(candles, Math.min(20, Math.max(3, Math.floor(candles.length / 2))));
 
-  if (statEl) {
-    var hi = -Infinity, lo = Infinity;
-    for (var s = 0; s < candles.length; s++) { if (candles[s][2] > hi) hi = candles[s][2]; if (candles[s][3] < lo) lo = candles[s][3]; }
-    statEl.textContent = 'Máx $' + fmtChartPrice(hi) + '  ·  Mín $' + fmtChartPrice(lo);
-  }
+  var hi = -Infinity, lo = Infinity;
+  for (var s = 0; s < candles.length; s++) { if (candles[s][2] > hi) hi = candles[s][2]; if (candles[s][3] < lo) lo = candles[s][3]; }
+  result.hi = hi; result.lo = lo;
 
   var t0 = candles[0][0], t1 = now;
   var pmin = Infinity, pmax = -Infinity;
@@ -1695,6 +1687,94 @@ function drawPredictChart(marketId, sym) {
   }
   drawMA(maFast, '#f0b90b');
   drawMA(maSlow, '#8b5cf6');
+  return result;
+}
+
+function applyChartResult(res, marketId, rangeKey) {
+  var priceEl = document.getElementById('chPrice' + marketId);
+  var changeEl = document.getElementById('chChange' + marketId);
+  var statEl = document.getElementById('chStat' + marketId);
+  if (priceEl && res.cur > 0) priceEl.textContent = '$' + fmtChartPrice(res.cur);
+  if (changeEl) {
+    if (res.ready) {
+      changeEl.innerHTML = (res.chg >= 0 ? '▲ +' : '▼ ') + res.chg.toFixed(2) + '%<br><span style="color:var(--muted);font-weight:400">' + rangeKey + '</span>';
+      changeEl.style.color = res.chg >= 0 ? '#0ecb81' : '#f6465d';
+    } else {
+      changeEl.innerHTML = '<span style="color:var(--muted)">cargando…</span>';
+    }
+  }
+  if (statEl) statEl.textContent = res.ready ? ('Máx $' + fmtChartPrice(res.hi) + '  ·  Mín $' + fmtChartPrice(res.lo)) : '';
+}
+
+function drawPredictChart(marketId, sym) {
+  var cv = document.getElementById('chCanvas' + marketId);
+  if (!cv) return;
+  var st = ensureChartState(sym);
+  var res = paintCandleChart(cv, sym, st.range);
+  applyChartResult(res, marketId, st.range);
+}
+
+// ====== MODAL DE GRÁFICO EN PANTALLA COMPLETA (tocar el gráfico para verlo de cerca) ======
+var chartModal = { open: false, marketId: null, sym: null };
+
+function openChartModal(marketId) {
+  var sym = chartSymByMarket[marketId];
+  if (!sym) return;
+  chartModal.open = true;
+  chartModal.marketId = marketId;
+  chartModal.sym = sym;
+  var st = ensureChartState(sym);
+  document.getElementById('chModalSym').textContent = sym + ' / USD';
+  document.getElementById('chModalOverlay').style.display = 'flex';
+  setModalRangeButtons(st.range);
+  setTimeout(drawModalChart, 20); // esperar a que el modal tenga tamaño real en pantalla
+}
+
+function closeChartModal() {
+  chartModal.open = false;
+  document.getElementById('chModalOverlay').style.display = 'none';
+}
+
+function setModalRange(range) {
+  if (!chartModal.sym) return;
+  ensureChartState(chartModal.sym).range = range;
+  setModalRangeButtons(range);
+  drawModalChart();
+  // mantener sincronizada la tarjeta chica del mercado con el mismo rango
+  if (chartModal.marketId) drawPredictChart(chartModal.marketId, chartModal.sym);
+}
+
+function setModalRangeButtons(range) {
+  for (var r in CHART_RANGES) {
+    var btn = document.getElementById('chModalRng' + r);
+    if (!btn) continue;
+    if (r === range) {
+      btn.style.background = 'var(--yellow)'; btn.style.color = '#111'; btn.style.border = '1px solid rgba(240,185,11,.4)';
+    } else {
+      btn.style.background = 'var(--card)'; btn.style.color = 'var(--muted)'; btn.style.border = '1px solid var(--border)';
+    }
+  }
+}
+
+function drawModalChart() {
+  if (!chartModal.open || !chartModal.sym) return;
+  var cv = document.getElementById('chModalCanvas');
+  if (!cv) return;
+  var st = ensureChartState(chartModal.sym);
+  var res = paintCandleChart(cv, chartModal.sym, st.range);
+  var priceEl = document.getElementById('chModalPrice');
+  var changeEl = document.getElementById('chModalChange');
+  var statEl = document.getElementById('chModalStat');
+  if (priceEl && res.cur > 0) priceEl.textContent = '$' + fmtChartPrice(res.cur);
+  if (changeEl) {
+    if (res.ready) {
+      changeEl.innerHTML = (res.chg >= 0 ? '▲ +' : '▼ ') + res.chg.toFixed(2) + '%';
+      changeEl.style.color = res.chg >= 0 ? '#0ecb81' : '#f6465d';
+    } else {
+      changeEl.innerHTML = '<span style="color:var(--muted)">cargando…</span>';
+    }
+  }
+  if (statEl) statEl.textContent = res.ready ? ('Máx $' + fmtChartPrice(res.hi) + '  ·  Mín $' + fmtChartPrice(res.lo)) : '';
 }
 
 async function doBet(marketId, up) {
@@ -1847,5 +1927,31 @@ async function doCreateMarket() {
   }
 }
 </script>
+
+<!-- ====== MODAL: gráfico en pantalla completa (tocar el gráfico de un mercado) ====== -->
+<div id="chModalOverlay" onclick="if(event.target===this)closeChartModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center;padding:14px">
+  <div style="width:100%;max-width:480px;max-height:94vh;overflow:auto;background:var(--card2);border:1px solid var(--border);border-radius:18px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span id="chModalSym" style="font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.5px;text-transform:uppercase">—</span>
+      <button onclick="closeChartModal()" style="background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;width:30px;height:30px;font-size:15px;font-weight:800">✕</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px">
+      <div id="chModalPrice" class="mono" style="font-size:28px;font-weight:800;color:#eaecef;letter-spacing:-.5px">—</div>
+      <div id="chModalChange" class="mono" style="font-size:15px;font-weight:800;text-align:right">—</div>
+    </div>
+    <div id="chModalStat" class="mono" style="font-size:11px;color:var(--muted);margin-top:2px">—</div>
+    <canvas id="chModalCanvas" style="width:100%;height:300px;display:block;margin-top:10px"></canvas>
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <button onclick="setModalRange('15M')" id="chModalRng15M" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">15M</button>
+      <button onclick="setModalRange('1H')" id="chModalRng1H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid rgba(240,185,11,.4);background:var(--yellow);color:#111;font-weight:800">1H</button>
+      <button onclick="setModalRange('6H')" id="chModalRng6H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">6H</button>
+      <button onclick="setModalRange('24H')" id="chModalRng24H" style="flex:1;font-size:12px;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-weight:700">24H</button>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:12px;font-size:10.5px;color:var(--muted);justify-content:center">
+      <span><span style="display:inline-block;width:10px;height:2px;background:#f0b90b;vertical-align:middle"></span> Media rápida</span>
+      <span><span style="display:inline-block;width:10px;height:2px;background:#8b5cf6;vertical-align:middle"></span> Media lenta</span>
+    </div>
+  </div>
+</div>
 </body>
 </html>
