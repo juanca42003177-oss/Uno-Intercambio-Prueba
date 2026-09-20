@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Uno Trading — Bitradex AI</title>
+<title>Uno Dragon — Trading</title>
 <script type="module">
   import { MiniKit } from 'https://cdn.jsdelivr.net/npm/@worldcoin/minikit-js@latest/+esm';
   window.MiniKit = MiniKit;
@@ -69,8 +69,9 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 <body>
 <div id="home">
   <div class="top">
-    <div class="avatar">UT</div>
-    <div style="flex:1"><b style="font-size:16px">Uno Trading</b><div class="small" id="walletInfo">No conectado • World Chain</div></div>
+    <div class="avatar" style="padding:2px;overflow:hidden;border:2px solid #f0b90b"><img src="https://media.base44.com/images/public/6a9b402957b8d49f539c4635/9ec132dfd_generated_image.png" alt="Uno Dragon" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
+    <div style="flex:1"><b style="font-size:16px">Uno Dragon</b><div class="small" id="walletInfo">No conectado • World Chain</div></div>
+    <button class="btnConnect" style="width:38px;margin-right:6px" title="Cómo funciona" onclick="showWelcome()">❓</button>
     <button class="btnConnect" id="btnConnect" onclick="connectWallet()">Conectar</button>
   </div>
   <div style="padding:16px"><div class="big" id="totalUsd">$0.00</div><div class="small"><span class="green">Valor del portafolio</span> <span class="live">LIVE</span></div></div>
@@ -236,6 +237,28 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   <div onclick="go('pred')">📊<span>Trading</span></div>
 </div>
 
+<div id="welcome" class="modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modalBox" style="max-width:420px;max-height:85vh;overflow-y:auto;text-align:left">
+    <div style="text-align:center">
+      <img src="https://media.base44.com/images/public/6a9b402957b8d49f539c4635/9ec132dfd_generated_image.png" alt="Uno Dragon" style="width:72px;height:72px;border-radius:50%;border:2px solid #f0b90b">
+      <div style="font-weight:900;font-size:20px;margin-top:8px">Bienvenido a Uno Dragon 🐉</div>
+      <div class="small" style="margin-top:4px">Trading, bóveda y predicciones en World Chain</div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-weight:800;color:#f0b90b">💰 Bóveda de Staking (LP)</div>
+      <div class="small" style="margin-top:4px;line-height:1.5">Deposita tu token favorito. El contrato cambia la mitad al otro token de la pareja y mete <b>liquidez real</b> al pool de Uniswap, generando comisiones de cada intercambio. Tu dinero nunca sale de la cadena y la plataforma solo cobra <b>20% de la ganancia</b>, jamás de tu capital. Bloqueo de 30 días, mínimo $1.</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-weight:800;color:#f0b90b">🎯 Predicciones</div>
+      <div class="small" style="margin-top:4px;line-height:1.5">Apuesta en USDC si un token <b>sube o baja</b> en las próximas 24 horas (WLD, ETH, WBTC, uSOL, uXRP, uDOGE, SUSHI, CHAD). Mínimo $1. Si aciertas, te llevas tu parte del pozo de quienes fallaron. Comisión de solo 1% al resolver; si nadie acierta, todos reciben su dinero de vuelta.</div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-weight:800;color:#f0b90b">🔄 Swap</div>
+      <div class="small" style="margin-top:4px;line-height:1.5">Intercambia más de 15 tokens reales con precios en vivo y liquidez verificada, directo de tu wallet de World App.</div>
+    </div>
+    <button class="btnY" style="width:100%;margin-top:16px" onclick="document.getElementById('welcome').style.display='none';localStorage.setItem('unoDragonWelcome','1')">¡Entendido, a operar! 🚀</button>
+  </div>
+</div>
 <div id="modal" class="modal" onclick="this.style.display='none'">
   <div class="modalBox">
     <div style="font-size:32px" id="modalIcon">✅</div>
@@ -245,6 +268,8 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script>
+function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
+if (!localStorage.getItem('unoDragonWelcome')) setTimeout(showWelcome, 600);
 const SWAP_ROUTER_V3 = '0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6';
 const SWAP_ROUTER_V2 = '0x541aB7c31A119441eF3575F6973277DE0eF460bd';
 const WETH_ADDRESS   = '0x4200000000000000000000000000000000000006';
@@ -429,7 +454,7 @@ async function connectWallet() {
     if (!window.MiniKit) return showOk('Abre dentro de World App', '⚠️');
     MiniKit.install();
     var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    var result = await MiniKit.walletAuth({ nonce: nonce, statement: 'Conectar Uno Trading' });
+    var result = await MiniKit.walletAuth({ nonce: nonce, statement: 'Conectar Uno Dragon' });
     if (result && result.data && result.data.address) {
       currentAccount = result.data.address;
       updateUI(currentAccount);
