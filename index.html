@@ -15,19 +15,23 @@
 :root{--bg:#0b0e14;--card:#151a21;--card2:#1e232c;--yellow:#f0b90b;--green:#0ecb81;--red:#f6465d;--muted:#848e9c;--border:#2b313a}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:#eaecef;padding-bottom:150px;-webkit-tap-highlight-color:transparent}
-.top{padding:14px 16px;display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--border);background:var(--card)}
+body{background:radial-gradient(1200px 420px at 50% -140px, rgba(240,185,11,.10), transparent 62%), var(--bg)}
+.top{padding:14px 16px;display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--border);background:linear-gradient(180deg, rgba(240,185,11,.05), transparent), var(--card)}
 .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#f0b90b,#ff9d00);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#111}
 .big{font-size:34px;font-weight:800;letter-spacing:-.5px}
 .small{font-size:12.5px;color:var(--muted)}
 .green{color:var(--green)}
 .red{color:var(--red)}
 .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px 16px 6px}
-.btn{background:var(--card2);color:#eaecef;border-radius:12px;padding:13px 4px;font-weight:700;text-align:center;font-size:12.5px;cursor:pointer;border:1px solid var(--border)}
+.btn{background:linear-gradient(180deg, var(--card2), var(--card));color:#eaecef;border-radius:12px;padding:13px 4px;font-weight:700;text-align:center;font-size:12.5px;cursor:pointer;border:1px solid var(--border);transition:transform .12s ease,border-color .12s ease}
+.btn:active{transform:scale(.97);border-color:rgba(240,185,11,.4)}
 .btn:active{background:#262c37}
 .tokens{padding:4px 16px 20px}
 .tok{display:flex;justify-content:space-between;padding:13px 0;border-bottom:1px solid var(--border);align-items:center;cursor:pointer}
 .tIcon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;flex-shrink:0;font-size:17px;position:relative;overflow:hidden}
-.nav{position:fixed;bottom:14px;left:14px;right:14px;background:#181d26;border:1px solid var(--border);border-radius:20px;display:flex;justify-content:space-evenly;align-items:center;padding:10px 8px;z-index:999;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.nav{position:fixed;bottom:14px;left:14px;right:14px;background:rgba(24,29,38,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(240,185,11,.18);border-radius:20px;display:flex;justify-content:space-evenly;align-items:center;padding:10px 6px;z-index:999;box-shadow:0 12px 34px rgba(0,0,0,.6), 0 0 0 1px rgba(240,185,11,.04)}
+.nav div{transition:background .15s ease}
+.nav div.active{background:rgba(240,185,11,.14);box-shadow:0 0 14px rgba(240,185,11,.10) inset}
 .nav div{width:52px;height:44px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:19px;line-height:1.15;font-size:19px}
 .nav div span{font-size:10px;font-weight:700;color:var(--muted)}
 .nav div.active{background:rgba(240,185,11,.14)}
@@ -36,7 +40,8 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background
 .box{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
 input{border:0;background:transparent;font-size:21px;font-weight:800;outline:none;width:100%;color:#eaecef}
 select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700;width:100%;max-width:150px}
-.btnY{width:100%;padding:15px;border-radius:12px;border:0;background:var(--yellow);color:#111;font-weight:800;font-size:15px;cursor:pointer;margin-top:12px}
+.btnY{width:100%;padding:15px;border-radius:12px;border:0;background:linear-gradient(135deg,#f5c924,#e8ae06);color:#111;font-weight:800;font-size:15px;cursor:pointer;margin-top:12px;box-shadow:0 6px 18px rgba(240,185,11,.22);transition:transform .12s ease,box-shadow .12s ease}
+.btnY:active{transform:scale(.98);box-shadow:0 3px 10px rgba(240,185,11,.18)}
 .btnY:active{background:#d9a60a}
 .btnConnect{background:var(--yellow);color:#111;border:0;padding:9px 16px;border-radius:9px;font-weight:800;font-size:12.5px;cursor:pointer}
 .perc{display:flex;gap:8px;margin-top:12px}
@@ -144,6 +149,33 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   </div>
 </div>
 
+<div id="wallet" style="display:none">
+  <div class="main" style="text-align:center;background:linear-gradient(180deg, rgba(240,185,11,.08), transparent 40%), var(--card)">
+    <h3>👛 Mi Billetera</h3>
+    <div class="small" style="margin-top:14px">Saldo total</div>
+    <div class="big" id="walletTotal">$0.00</div>
+    <div class="box" style="text-align:left">
+      <div class="small">Mi dirección (World Chain)</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <div id="walletAddr" style="font-size:12.5px;font-weight:700;word-break:break-all;flex:1">Conecta tu wallet para ver tu dirección</div>
+        <button class="btnConnect" style="display:none" id="btnCopy" onclick="copyAddr()">📋 Copiar</button>
+      </div>
+    </div>
+    <div id="walletQRBox" style="display:none;margin-top:6px">
+      <img id="walletQR" src="" alt="QR" style="border-radius:14px;border:1px solid var(--border);width:180px;height:180px;background:#fff;padding:8px">
+      <div class="small" style="margin-top:6px">Escanea para enviarme tokens</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btnY" style="flex:1;margin-top:0" onclick="go('recv')">↓ Recibir</button>
+      <button class="btnY" style="flex:1;margin-top:0;background:var(--card2);color:#eaecef;box-shadow:none" onclick="go('send')">↗ Enviar</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btnY" style="flex:1;margin-top:0;background:var(--card2);color:#eaecef;box-shadow:none" onclick="go('swap')">⇆ Swap</button>
+      <button class="btnY" style="flex:1;margin-top:0;background:var(--card2);color:#eaecef;box-shadow:none" onclick="go('home')">📈 Portafolio</button>
+    </div>
+  </div>
+</div>
+
 <div id="send" style="display:none">
   <div class="main">
     <h3 style="text-align:center">↗ Enviar</h3>
@@ -232,6 +264,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 
 <div class="nav">
   <div id="navHome" class="active" onclick="go('home')">🏠<span>Inicio</span></div>
+  <div onclick="go('wallet')">👛<span>Billetera</span></div>
   <div onclick="go('swap')">⇆<span>Swap</span></div>
   <div onclick="go('earn')">🏦<span>Bóveda</span></div>
   <div onclick="go('pred')">📊<span>Trading</span></div>
@@ -386,13 +419,24 @@ function tokenIconHTML(t, sym) {
     : '');
 }
 
+function copyAddr() {
+  navigator.clipboard.writeText(currentAccount || '').then(function(){ showOk('Dirección copiada', '📋'); });
+}
 function go(page) {
-  ['home','swap','earn','send','recv','tokenDetail','pred'].forEach(function(p) {
+  ['home','swap','earn','send','recv','tokenDetail','pred','wallet'].forEach(function(p) {
     var el = document.getElementById(p);
     if (el) el.style.display = (p === page) ? 'block' : 'none';
   });
   document.querySelectorAll('.nav div').forEach(function(d) { d.classList.remove('active'); });
   if (page === 'home') document.getElementById('navHome').classList.add('active');
+  if (page === 'wallet' && currentAccount) {
+    document.getElementById('walletAddr').innerText = currentAccount;
+    document.getElementById('btnCopy').style.display = 'inline-block';
+    document.getElementById('walletQRBox').style.display = 'block';
+    document.getElementById('walletQR').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(currentAccount);
+    var t = document.getElementById('totalUsd');
+    if (t) document.getElementById('walletTotal').innerText = t.innerText;
+  }
   if (page === 'recv' && currentAccount) {
     document.getElementById('recvAddr').innerText = currentAccount;
     document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(currentAccount);
