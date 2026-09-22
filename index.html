@@ -445,6 +445,7 @@ function go(page) {
     document.getElementById('recvAddr').innerText = currentAccount;
     document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(currentAccount);
   }
+  if (currentAccount && Date.now() - lastBalancesRefresh > 30000) quietRefreshBalances();
   if (page === 'swap') { fillSelects(); calc(); }
   if (page === 'send') { fillSendSelect(); updateSendBal(); }
   if (page === 'earn' || page === 'pred') { loadVaultPredict(); }
@@ -554,15 +555,21 @@ function disconnectWallet() {
 // Actualiza saldos SIN mostrar el modal de "Cargando..." — para refrescos
 // silenciosos en segundo plano (ej. después de un swap) sin tapar el mensaje
 // de éxito que ya está en pantalla.
+var balancesRefreshPending = false;
+var lastBalancesRefresh = 0;
 async function quietRefreshBalances() {
-  if (!currentAccount) return;
+  if (!currentAccount || balancesRefreshPending || loadingBalances || document.hidden) return;
+  balancesRefreshPending = true;
+  var accountAtStart = currentAccount;
   try {
     var res = await fetch(API_BALANCES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: currentAccount })
     });
+    if (!res.ok) throw new Error('Saldo HTTP ' + res.status);
     var data = await res.json();
+    if (currentAccount !== accountAtStart || !data || !data.balances) return;
     if (data && data.balances) {
       for (var sym in CONTRACTS) {
         if (data.balances[sym] !== undefined) balances[sym] = data.balances[sym];
@@ -575,11 +582,30 @@ async function quietRefreshBalances() {
       for (var sym in data.rawBalances) rawBalances[sym] = data.rawBalances[sym];
       if (data.rawBalances.WETH !== undefined) rawBalances.ETH = data.rawBalances.WETH;
     }
+    lastBalancesRefresh = Date.now();
+    renderTokenList();
+    updateTotal();
+    var walletTotal = document.getElementById('walletTotal');
+    if (walletTotal) walletTotal.textContent = document.getElementById('totalUsd').textContent;
+    var detail = document.getElementById('tokenDetail');
+    if (detail && detail.style.display === 'block' && selectedToken && CONTRACTS[selectedToken]) {
+      var bal = balances[selectedToken] || 0;
+      var px = prices[selectedToken] || 0;
+      var dBal = document.getElementById('dBalText');
+      if (dBal) dBal.textContent = formatCrypto(bal) + ' ' + selectedToken;
+      var dBal2 = document.getElementById('dBal');
+      if (dBal2) dBal2.textContent = formatCrypto(bal) + ' ' + selectedToken;
+      var dUsd = document.getElementById('dUsd');
+      if (dUsd) dUsd.textContent = '$' + (bal * px).toFixed(2);
+    }
+    if (document.getElementById('swap').style.display === 'block') fillSelects();
+    if (document.getElementById('send').style.display === 'block') { fillSendSelect(); updateSendBal(); }
+    if (typeof updateVaultCardData === 'function') updateVaultCardData();
   } catch (e) {
     console.error('Error refrescando saldos:', e);
+  } finally {
+    balancesRefreshPending = false;
   }
-  renderTokenList();
-  updateTotal();
 }
 
 // Dos refrescos rápidos y silenciosos tras un swap/envío, en vez de una
@@ -603,6 +629,7 @@ async function loadRealBalances() {
     });
     var data = await res.json();
     if (data && data.balances) {
+      lastBalancesRefresh = Date.now();
       for (var sym in CONTRACTS) {
         if (data.balances[sym] !== undefined) balances[sym] = data.balances[sym];
       }
@@ -635,6 +662,8 @@ function updateTotal() {
     total += (balances[sym] || 0) * (prices[sym] || 0);
   }
   document.getElementById('totalUsd').innerText = '$' + total.toFixed(2);
+  var walletTotal = document.getElementById('walletTotal');
+  if (walletTotal) walletTotal.textContent = document.getElementById('totalUsd').textContent;
 }
 
 function renderTokenList() {
@@ -1108,15 +1137,23 @@ async function fetchLivePrices() {
   renderTokenList();
   if (document.getElementById('swap').style.display === 'block') fillSelects();
   if (document.getElementById('send').style.display === 'block') fillSendSelect();
+  if (typeof updateVaultCardData === 'function') updateVaultCardData();
 }
 
 window.addEventListener('load', function() {
   if (window.MiniKit) { try { MiniKit.install(); } catch(e) {} }
   renderTokenList();
   fetchLivePrices();
+  setTimeout(loadVaultPredict, 0);
+  setInterval(function() {
+    if (!document.hidden && currentAccount && Date.now() - lastBalancesRefresh >= 60000) quietRefreshBalances();
+  }, 15000);
   setInterval(fetchLivePrices, 60000);
   document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) fetchLivePrices();
+    if (!document.hidden) {
+      fetchLivePrices();
+      if (currentAccount) quietRefreshBalances();
+    }
   });
 });
 </script>
@@ -1152,25 +1189,46 @@ function encodeCreateMarket(label, betDeadline, resolveAt) {
 }
 
 var vaultPredictData = null;
+var vaultPredictRefreshPending = false;
+var lastVaultPredictRefresh = 0;
+var lastVaultPredictSignature = '';
 
 async function loadVaultPredict() {
+  if (vaultPredictRefreshPending || document.hidden) return;
+  vaultPredictRefreshPending = true;
+  var accountAtStart = currentAccount;
   try {
     var res = await fetch(API_VAULT_PREDICT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address: currentAccount || '' })
+      cache: 'no-store',
+      body: JSON.stringify({ address: accountAtStart || '' })
     });
-    vaultPredictData = await res.json();
+    if (!res.ok) throw new Error('Mercados HTTP ' + res.status);
+    var data = await res.json();
+    if (accountAtStart !== currentAccount || !data || !data.predict || !Array.isArray(data.predict.markets) || !Array.isArray(data.vaults)) throw new Error('Respuesta incompleta');
+    lastVaultPredictRefresh = Date.now();
+    // Ignorar el timestamp: no reconstruir tarjetas si los datos no cambiaron.
+    var signature = JSON.stringify([data.vaults, data.predict]);
+    if (signature === lastVaultPredictSignature) return;
+    lastVaultPredictSignature = signature;
+    vaultPredictData = data;
+    renderVaultCards();
+    renderPredictSection();
   } catch (e) {
-    vaultPredictData = null;
+    // Ante un fallo temporal conservamos el estado mostrado, nunca vaciamos
+    // posiciones ni saldos por una respuesta de red fallida.
+    console.error('Error refrescando bóvedas y mercados:', e);
+  } finally {
+    vaultPredictRefreshPending = false;
   }
-  renderVaultCards();
-  renderPredictSection();
 }
 
 function renderVaultCards() {
   var el = document.getElementById('vaultCards');
   if (!el) return;
+  var drafts = {};
+  activeVaults().forEach(function(v) { var input = document.getElementById('vaultAmt_' + v.id); if (input) drafts[v.id] = input.value; });
   var html = '';
   activeVaults().forEach(function(v){
     html += '<div class="box" style="background:rgba(14,203,129,.08);border-color:rgba(14,203,129,.4)">'
@@ -1191,6 +1249,7 @@ function renderVaultCards() {
       + '</div>';
   });
   el.innerHTML = html;
+  activeVaults().forEach(function(v) { var input = document.getElementById('vaultAmt_' + v.id); if (input && drafts[v.id] !== undefined) input.value = drafts[v.id]; });
   updateVaultCardData();
 }
 
@@ -1343,6 +1402,8 @@ function renderPredictSection() {
   var listEl = document.getElementById('marketsList');
   var noneEl = document.getElementById('noMarkets');
   if (!listEl) return;
+  var betDrafts = {};
+  listEl.querySelectorAll('input[id^=betAmt]').forEach(function(input) { betDrafts[input.id] = input.value; });
   var markets = (vaultPredictData && vaultPredictData.predict && vaultPredictData.predict.markets) || [];
   if (markets.length === 0) {
     listEl.innerHTML = '';
@@ -1415,6 +1476,7 @@ function renderPredictSection() {
     html += '</div>';
   });
   listEl.innerHTML = html;
+  listEl.querySelectorAll('input[id^=betAmt]').forEach(function(input) { if (betDrafts[input.id] !== undefined) input.value = betDrafts[input.id]; });
   // cargar historial de precios de cada mercado y dibujar gráficos
   var seen = {};
   for (var cmid in chartSymByMarket) {
@@ -1422,6 +1484,8 @@ function renderPredictSection() {
     if (csy && !seen[csy]) { seen[csy] = 1; loadPriceHistory(csy); }
   }
   drawAllPredictCharts();
+  // Mantener selección de período del gráfico tras renovar una tarjeta.
+  markets.forEach(function(m) { var sym = chartSymByMarket[m.id]; if (sym && chartState[sym] && chartState[sym].range !== '1H') setChartRange(m.id, chartState[sym].range); });
   tickMarketCountdowns();
 }
 
@@ -1460,6 +1524,14 @@ function tickMarketCountdowns() {
   }
 }
 setInterval(tickMarketCountdowns, 1000);
+// El bot cambia mercados cada 10 min. Poll moderado y solo con la app visible;
+// cubre Trading, bóvedas, balances y vuelta desde World App sin recargar.
+setInterval(function() {
+  if (!document.hidden && Date.now() - lastVaultPredictRefresh >= 30000) loadVaultPredict();
+}, 10000);
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) loadVaultPredict();
+});
 var chartState = {};                  // sym -> {series:[], live:[], range:'1H', fetchedAt:0, loading:false}
 var CHART_RANGES = { '15M': 15*60*1000, '1H': 60*60*1000, '6H': 6*60*60*1000, '24H': 24*60*60*1000 };
 var _chartSymsSorted = null;
