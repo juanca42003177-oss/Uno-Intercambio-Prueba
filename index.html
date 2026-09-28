@@ -1163,11 +1163,14 @@ window.addEventListener('load', function() {
 // ---- Bóvedas reales de Dragon Trade (contratos en cadena) ----
 // addr vacío = bóveda aún no desplegada: no se muestra en la app.
 var VAULTS = [
-  {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.'},
-  {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'0x185aAda41c13aA76340774f64368d807f8EA08EB', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.'},
-  {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'0x996a3931fd159D41f8E2428472153A8e768C6106', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.'}
+  {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0xdfFC1AC6b093ba7cA9D3A597965284Ce8F07a927', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.', feeNote:'1% flat al retirar'},
+  {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'0x5C974862F850Ac7AfCBd47cD6364C7279E3a7557', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.', feeNote:'1% flat al retirar'},
+  {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.', feeNote:'1% flat al retirar'}, // PENDIENTE: la direccion que Juan dio 2026-09-28 (0xa90123...) resultó ser una AXO duplicada, no CHAD real. Esperando redeploy correcto.
+  {id:'axo_old',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0x6eE69B57B22DABA89fa407B048477AB7c7aD7D71', note:'', feeNote:'20% solo de la ganancia', legacy:true},
+  {id:'dna_old',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'0x185aAda41c13aA76340774f64368d807f8EA08EB', note:'', feeNote:'20% solo de la ganancia', legacy:true},
+  {id:'chad_old', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'0x996a3931fd159D41f8E2428472153A8e768C6106', note:'', feeNote:'20% solo de la ganancia', legacy:true}
 ];
-function activeVaults() { return VAULTS.filter(function(v){ return v.addr; }); }
+function activeVaults() { return VAULTS.filter(function(v){ return v.addr && !v.legacy; }); }
 function vaultCfg(id) { for (var i = 0; i < VAULTS.length; i++) { if (VAULTS[i].id === id) return VAULTS[i]; } return null; }
 
 // ---- codificación de llamadas a los contratos ----
@@ -1234,7 +1237,7 @@ function renderVaultCards() {
     html += '<div class="box" style="background:rgba(14,203,129,.08);border-color:rgba(14,203,129,.4)">'
       + '<span class="badge badgeLive">ACTIVA</span>'
       + '<h4 style="margin-top:8px">' + v.name + ' — Bóveda REAL</h4>'
-      + '<div class="phaseNote">' + v.note + ' Cobro: <b>20% solo de la ganancia</b> al retirar. Bloqueo: <b id="vLockDays_' + v.id + '">30</b> días. Mínimo: <b id="vMin_' + v.id + '">—</b> ' + v.symA + '.</div>'
+      + '<div class="phaseNote">' + v.note + ' Cobro: <b>' + v.feeNote + '</b> al retirar. Bloqueo: <b id="vLockDays_' + v.id + '">30</b> días. Mínimo: <b id="vMin_' + v.id + '">—</b> ' + v.symA + '.</div>'
       + '<div class="small" style="margin-top:10px">Cantidad de ' + v.symA + ' a depositar</div>'
       + '<input id="vaultAmt_' + v.id + '" type="number" placeholder="0.0" style="font-size:16px;margin:6px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">'
       + '<div class="perc">'
