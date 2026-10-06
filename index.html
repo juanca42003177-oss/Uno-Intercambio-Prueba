@@ -301,6 +301,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   </div>
 </div>
 
+<script src="no44.js"></script>
 <script>
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
 if (!localStorage.getItem('dragonWelcomeKey')) setTimeout(showWelcome, 600);
@@ -567,8 +568,9 @@ async function quietRefreshBalances() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: currentAccount })
     });
-    if (!res.ok) throw new Error('Saldo HTTP ' + res.status);
-    var data = await res.json();
+    var data = null;
+    if (res.ok) data = await res.json();
+    if ((!data || !data.balances) && window.NO44) data = await no44Balances(currentAccount);
     if (currentAccount !== accountAtStart || !data || !data.balances) return;
     if (data && data.balances) {
       for (var sym in CONTRACTS) {
@@ -627,7 +629,8 @@ async function loadRealBalances() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: currentAccount })
     });
-    var data = await res.json();
+    var data = res.ok ? await res.json() : null;
+    if ((!data || !data.balances) && window.NO44) data = await no44Balances(currentAccount);
     if (data && data.balances) {
       lastBalancesRefresh = Date.now();
       for (var sym in CONTRACTS) {
@@ -922,7 +925,10 @@ async function quoteBestPrice(tokenIn, tokenOut, amountIn) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn.toString() })
     });
-    return await r.json();
+    var data = null;
+    if (r.ok) data = await r.json();
+    if (!data || !data.ok) data = await no44QuoteSwap(tokenIn, tokenOut, amountIn.toString());
+    return data;
   } catch (e) {
     return { ok: false, note: 'No se pudo conectar con el servidor de precios' };
   }
@@ -1107,6 +1113,9 @@ async function fetchLivePrices() {
   try {
     var res = await fetch(API_PRICES);
     var data = await res.json();
+    if ((!res.ok || !data || !data.prices) && window.NO44) {
+      data = await no44Prices(); // respaldo directo sin Base44
+    }
     if (data && data.prices) {
       for (var sym in data.prices) {
         if (sym === 'DIAMANTE' && data.prices[sym] < 0.001) continue;
@@ -1207,8 +1216,11 @@ async function loadVaultPredict() {
       cache: 'no-store',
       body: JSON.stringify({ address: accountAtStart || '' })
     });
-    if (!res.ok) throw new Error('Mercados HTTP ' + res.status);
-    var data = await res.json();
+    var data = null;
+    if (res.ok) data = await res.json();
+    if ((!data || !data.predict || !Array.isArray(data.predict.markets) || !Array.isArray(data.vaults)) && window.NO44) {
+      data = await no44VaultPredict(accountAtStart || ''); // respaldo directo sin Base44
+    }
     if (accountAtStart !== currentAccount || !data || !data.predict || !Array.isArray(data.predict.markets) || !Array.isArray(data.vaults)) throw new Error('Respuesta incompleta');
     lastVaultPredictRefresh = Date.now();
     // Ignorar el timestamp: no reconstruir tarjetas si los datos no cambiaron.
