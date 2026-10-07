@@ -4,19 +4,23 @@ pragma solidity 0.8.20;
 // DamasPot — juego de Damas P2P de Dragon Trade (World Chain).
 // Cada jugador bloquea la misma apuesta en WLD (pozo comun en cadena);
 // al terminar, el ganador se lleva el pozo menos 1% de comision.
-// Dragon Trade Labs (owner) solo configura la comision; no toca fondos
-// de partidas activas y no participa en las partidas.
+// Dragon Trade Labs (owner) solo configura la comision y arbitra disputas
+// raras; no toca fondos de partidas normales y no participa en las partidas.
 //
 // Flujo:
 //   1. createGame(stake)  -> jugador 1 bloquea su WLD, reto abierto
 //   2. joinGame(id)        -> jugador 2 bloquea lo mismo, empieza la partida
 //   3. (los movimientos van por la app, fuera de cadena: sin gas por jugada)
-//   4. Al terminar:
-//        - settle(id, winner, sig1, sig2): ambos firman el resultado y el
-//          contrato paga al ganador (winner = 0x0 = empate, reembolso).
+//   4. Al terminar, CADA jugador manda su propia transaccion normal
+//      confirmResult(id, winner) con quien creyo que ganó. Si ambos
+//      coinciden, el contrato paga solo. Esto funciona con cualquier wallet
+//      (incluidas las smart wallets de World App), sin firmas off-chain.
+//        - Si los dos coinciden -> pago automatico.
+//        - Si no coinciden (alguien hizo trampa) -> queda en disputa;
+//          Dragon Trade Labs puede arbitrar (arbitrate) como ultimo recurso.
 //        - resign(id): el que se rinde pierde; el otro cobra directo.
 //        - claimTimeout(id): si el rival desaparece, a las 72h de la ultima
-//          actividad en cadena (touch) el otro jugador cobra.
+//          actividad en cadena (touch/voto) el otro jugador cobra.
 //   5. touch(id): cada navegador lo llama al abrir una partida activa para
 //      demostrar que el jugador sigue presente (protege contra timeout injusto).
 
@@ -34,7 +38,7 @@ contract DamasPot {
     uint256 public constant MAX_STAKE = 1000e18; // tope de seguridad on-chain
     uint256 public constant TIMEOUT = 72 hours;
 
-    enum Status { None, Open, Active, Finished }
+    enum Status { None, Open, Active, Finished, Disputed }
 
     struct Game {
         address p1;
@@ -42,7 +46,11 @@ contract DamasPot {
         uint256 stake;
         Status status;
         uint256 lastTouch;
+        address p1Vote; // address(1) = sin votar aun (0x0 es un resultado valido: empate)
+        address p2Vote;
     }
+
+    address constant NO_VOTE = address(1);
 
     mapping(uint256 => Game) public games;
     uint256 public gameCount;
@@ -50,7 +58,9 @@ contract DamasPot {
     event GameCreated(uint256 indexed id, address indexed p1, uint256 stake);
     event GameJoined(uint256 indexed id, address indexed p2);
     event Touched(uint256 indexed id, address indexed who);
+    event ResultVoted(uint256 indexed id, address indexed who, address winner);
     event GameSettled(uint256 indexed id, address indexed winner, uint256 payout, uint256 fee);
+    event GameDisputed(uint256 indexed id, address p1Vote, address p2Vote);
     event GameCancelled(uint256 indexed id);
     event FeeUpdated(uint256 bps);
 
@@ -68,7 +78,7 @@ contract DamasPot {
         require(stake >= MIN_STAKE && stake <= MAX_STAKE, "apuesta fuera de rango");
         require(wld.transferFrom(msg.sender, address(this), stake), "transfer fallo");
         id = ++gameCount;
-        games[id] = Game(msg.sender, address(0), stake, Status.Open, block.timestamp);
+        games[id] = Game(msg.sender, address(0), stake, Status.Open, block.timestamp, NO_VOTE, NO_VOTE);
         emit GameCreated(id, msg.sender, stake);
     }
 
@@ -102,20 +112,26 @@ contract DamasPot {
         emit Touched(id, msg.sender);
     }
 
-    // ---------- finalizacion ----------
+    // ---------- finalizacion: cada jugador vota el resultado con su propia tx ----------
 
-    // Resultado firmado por AMBOS jugadores: winner = p1, p2 o 0x0 (empate).
-    // Mensaje firmado (EIP-191): keccak256(abi.encodePacked("DAMAS#", id, "#", winner))
-    function settle(uint256 id, address winner, bytes calldata sig1, bytes calldata sig2) external {
+    function confirmResult(uint256 id, address winner) external {
         Game storage g = games[id];
         require(g.status == Status.Active, "partida no activa");
         require(msg.sender == g.p1 || msg.sender == g.p2, "no eres jugador");
         require(winner == g.p1 || winner == g.p2 || winner == address(0), "ganador invalido");
-        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",
-            keccak256(abi.encodePacked("DAMAS#", id, "#", winner))));
-        require(_recover(digest, sig1) == g.p1, "firma 1 invalida");
-        require(_recover(digest, sig2) == g.p2, "firma 2 invalida");
-        _finish(id, winner);
+
+        if (msg.sender == g.p1) g.p1Vote = winner; else g.p2Vote = winner;
+        g.lastTouch = block.timestamp;
+        emit ResultVoted(id, msg.sender, winner);
+
+        if (g.p1Vote != NO_VOTE && g.p2Vote != NO_VOTE) {
+            if (g.p1Vote == g.p2Vote) {
+                _finish(id, g.p1Vote);
+            } else {
+                g.status = Status.Disputed;
+                emit GameDisputed(id, g.p1Vote, g.p2Vote);
+            }
+        }
     }
 
     function resign(uint256 id) external {
@@ -131,6 +147,15 @@ contract DamasPot {
         require(msg.sender == g.p1 || msg.sender == g.p2, "no eres jugador");
         require(block.timestamp >= g.lastTouch + TIMEOUT, "rival aun activo");
         _finish(id, _other(g, msg.sender));
+    }
+
+    // Ultimo recurso si los jugadores votaron distinto (alguien hizo trampa).
+    // Dragon Trade Labs decide con la evidencia que le compartan los jugadores.
+    function arbitrate(uint256 id, address winner) external onlyOwner {
+        Game storage g = games[id];
+        require(g.status == Status.Disputed, "no esta en disputa");
+        require(winner == g.p1 || winner == g.p2 || winner == address(0), "ganador invalido");
+        _finish(id, winner);
     }
 
     // ---------- internos ----------
@@ -156,16 +181,7 @@ contract DamasPot {
         return who == g.p1 ? g.p2 : g.p1;
     }
 
-    function _recover(bytes32 digest, bytes calldata sig) internal pure returns (address) {
-        require(sig.length == 65, "firma invalida");
-        bytes32 r = bytes32(sig[0:32]);
-        bytes32 s = bytes32(sig[32:64]);
-        uint8 v = uint8(sig[64]);
-        if (v < 27) v += 27;
-        return ecrecover(digest, v, r, s);
-    }
-
-    // ---------- admin (solo comision / wallet, nunca fondos de partidas) ----------
+    // ---------- admin (solo comision / wallet / disputas, nunca fondos normales) ----------
 
     function setFee(uint256 bps) external onlyOwner {
         require(bps <= 500, "max 5%");

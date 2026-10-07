@@ -69,6 +69,20 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 .pillRed{background:rgba(246,70,93,.15);color:var(--red)}
 .mktCard h4{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:16px;font-weight:800}
 .mktCard .mktTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.damas-section{font-weight:800;color:var(--yellow);margin:16px 4px 8px;font-size:13.5px}
+.damas-muted{color:var(--muted);font-size:12.5px;text-align:center;padding:10px}
+.damas-muted.err{color:var(--red)}
+.damas-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;margin:8px 0;font-size:13px;line-height:1.6}
+.damas-card button{margin-top:8px}
+.damas-grid{display:grid;grid-template-columns:repeat(8,1fr);width:min(100%,340px);aspect-ratio:1/1;border:2px solid var(--border);border-radius:8px;overflow:hidden}
+.damas-sq{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1}
+.damas-sq.light{background:#2b313a}
+.damas-sq.dark{background:#151a21;cursor:pointer}
+.damas-sq.sel{background:rgba(240,185,11,.35)}
+.damas-piece{width:72%;height:72%;border-radius:50%;box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
+.damas-piece.damas-p1{background:radial-gradient(circle at 35% 30%,#ffe9a8,#f0b90b)}
+.damas-piece.damas-p2{background:radial-gradient(circle at 35% 30%,#5c6673,#1e232c)}
+.damas-piece.damas-king{box-shadow:inset 0 2px 4px rgba(0,0,0,.4),0 0 0 3px rgba(255,255,255,.5)}
 </style>
 </head>
 <body>
@@ -85,7 +99,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
     <div class="btn" onclick="go('swap')">⇆ Swap</div>
     <div class="btn" onclick="go('earn')">🏦 Bóveda</div>
     <div class="btn" onclick="go('pred')">📊 Trading</div>
-    <div class="btn" onclick="go('send')">↗ Enviar</div>
+    <div class="btn" onclick="go('damas')">♟️ Damas</div>
   </div>
   <div class="tokens" id="tokenList"></div>
 </div>
@@ -251,6 +265,40 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   </div>
 </div>
 
+<div id="damas" style="display:none">
+  <div class="main">
+    <h3 style="text-align:center">♟️ Damas — Apuesta en WLD</h3>
+    <div class="small" style="text-align:center;margin-bottom:12px">Usuario vs usuario, pozo común: el que gana se lleva todo</div>
+    <div class="box" style="font-size:12.5px;line-height:1.6">
+      <b style="color:var(--yellow)">Cómo funciona</b><br>
+      Elegís tu apuesta en WLD (desde 1 hasta lo que valga $10). El rival pone lo mismo y el pozo queda bloqueado en el contrato. Al terminar la partida ambos confirman quién ganó; si coinciden, <b>se paga solo</b> (1% de comisión). Dragon Trade no se involucra en partidas normales.
+    </div>
+
+    <div id="damasLobbyView">
+      <div class="box">
+        <b style="color:var(--yellow)">Crear un reto nuevo</b>
+        <div class="small" style="margin:10px 0 4px">Apuesta en WLD (<span id="damasMinMax">mín 1 — máx ~$10</span>)</div>
+        <input id="damasStakeInput" type="number" min="1" step="0.1" value="1" placeholder="Cantidad de WLD" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
+        <button class="btnY" style="margin-top:10px" onclick="damasCreateGame(document.getElementById('damasStakeInput').value)">⚔️ Crear reto</button>
+      </div>
+      <div id="damasLobby"></div>
+    </div>
+
+    <div id="damasBoardView" style="display:none">
+      <div style="text-align:center;font-weight:800;margin-bottom:6px" id="damasTurnInfo">—</div>
+      <div id="damasBoard" style="display:flex;justify-content:center;margin:10px 0"></div>
+      <div id="damasActionsBox"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasResign()">🏳️ Rendirse</button>
+        <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasClaimTimeout()">⏱️ Cobrar por abandono</button>
+      </div>
+      <button class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px" onclick="damasExitGame()">← Volver al lobby</button>
+    </div>
+
+    <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px">← Volver</button>
+  </div>
+</div>
+
 <div id="recv" style="display:none">
   <div class="main">
     <h3 style="text-align:center">↓ Recibir</h3>
@@ -269,6 +317,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   <div onclick="go('swap')">⇆<span>Swap</span></div>
   <div onclick="go('earn')">🏦<span>Bóveda</span></div>
   <div onclick="go('pred')">📊<span>Trading</span></div>
+  <div onclick="go('damas')">♟️<span>Damas</span></div>
 </div>
 
 <div id="welcome" class="modal" onclick="if(event.target===this)this.style.display='none'">
@@ -302,6 +351,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js"></script>
+<script src="damas.js"></script>
 <script>
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
 if (!localStorage.getItem('dragonWelcomeKey')) setTimeout(showWelcome, 600);
@@ -439,7 +489,7 @@ function copyAddr() {
   navigator.clipboard.writeText(currentAccount || '').then(function(){ showOk('Dirección copiada', '📋'); });
 }
 function go(page) {
-  ['home','swap','earn','send','recv','tokenDetail','pred','wallet'].forEach(function(p) {
+  ['home','swap','earn','send','recv','tokenDetail','pred','wallet','damas'].forEach(function(p) {
     var el = document.getElementById(p);
     if (el) el.style.display = (p === page) ? 'block' : 'none';
   });
@@ -461,6 +511,7 @@ function go(page) {
   if (page === 'swap') { fillSelects(); calc(); }
   if (page === 'send') { fillSendSelect(); updateSendBal(); }
   if (page === 'earn' || page === 'pred') { loadVaultPredict(); }
+  if (page === 'damas') { damasRefreshLobby(); }
 }
 
 function openToken(sym) {
