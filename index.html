@@ -307,6 +307,18 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
         <input id="damasStakeInput" type="number" min="1" step="0.1" value="1" placeholder="Cantidad de WLD" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
         <button class="btnY" style="margin-top:10px" onclick="damasCreateGame(document.getElementById('damasStakeInput').value)">⚔️ Crear reto</button>
       </div>
+      <div class="box" style="margin-top:10px">
+        <b style="color:var(--yellow)">🎯 Modo práctica (gratis)</b>
+        <div class="small" style="margin:8px 0 6px">Jugá contra la IA del dragón sin apuesta ni gas: pulí tu talento antes de apostar.</div>
+        <div style="display:flex;gap:6px">
+          <select id="damasLevel" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;color:#eaecef;font-size:14px">
+            <option value="1">🐤 Fácil</option>
+            <option value="3" selected>🐉 Normal</option>
+            <option value="5">🔥 Difícil</option>
+          </select>
+          <button class="btnY" onclick="damasStartPractice(document.getElementById('damasLevel').value)">▶️ Jugar</button>
+        </div>
+      </div>
       <div id="damasLobby"></div>
     </div>
 
@@ -347,11 +359,11 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
         <button onclick="damasSendEmote('👍')" title="Buena jugada">👍</button>
       </div>
       <div id="damasActionsBox"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <div id="damasPvpButtons" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
         <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasResign()">🏳️ Rendirse</button>
         <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasClaimTimeout()">⏱️ Cobrar por abandono</button>
       </div>
-      <button class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px" onclick="damasExitGame()">← Volver al lobby</button>
+      <button id="damasExitBtn" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px" onclick="damasLeaveBoard()">← Volver al lobby</button>
     </div>
 
     <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px">← Volver</button>

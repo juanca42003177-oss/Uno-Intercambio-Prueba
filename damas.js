@@ -136,6 +136,184 @@ async function damasSendTx(txs, waitMsg) {
   return result;
 }
 
+// ---------------- modo practica (gratis, contra la IA del dragon) ----------------
+// Sin apuesta, sin gas, sin contrato: 100% en el navegador.
+let damasPractice = null; // { board, turn, selected, depth, over }
+
+function damasStartPractice(depth) {
+  damasPractice = { board: damasInitialBoard(), turn: 'p1', selected: null, depth: Number(depth) || 3, over: false };
+  document.getElementById('damasLobbyView').style.display = 'none';
+  document.getElementById('damasBoardView').style.display = 'block';
+  document.getElementById('damasEmoteBar').style.display = 'none';       // emojis solo en P2P
+  document.getElementById('damasPvpButtons').style.display = 'none';      // sin rendirse/cobrar
+  document.getElementById('damasExitBtn').textContent = '← Terminar práctica';
+  document.getElementById('damasActionsBox').innerHTML = '';
+  if (damasPollTimer) { clearInterval(damasPollTimer); damasPollTimer = null; }
+  damasRenderPractice();
+}
+
+function damasExitPractice() {
+  damasPractice = null;
+  document.getElementById('damasEmoteBar').style.display = 'flex';
+  document.getElementById('damasPvpButtons').style.display = 'grid';
+  document.getElementById('damasExitBtn').textContent = '← Volver al lobby';
+  document.getElementById('damasLobbyView').style.display = 'block';
+  document.getElementById('damasBoardView').style.display = 'none';
+}
+
+function damasLeaveBoard() {
+  if (damasPractice) damasExitPractice();
+  else damasExitGame();
+}
+
+// ---- IA: minimax con poda alfa-beta sobre el mismo motor de reglas ----
+function practiceEval(b) { // >0 favorece al dragon (p2)
+  let s = 0;
+  for (const p of b) {
+    if (p === 2) s += 1; else if (p === 4) s += 1.6;
+    else if (p === 1) s -= 1; else if (p === 3) s -= 1.6;
+  }
+  return s;
+}
+function practiceSearch(board, side, depth, alpha, beta) {
+  const moves = damasLegalMoves(board, side);
+  if (moves.length === 0) return side === 'p2' ? -99 : 99; // sin jugadas = pierde
+  if (depth <= 0) return practiceEval(board);
+  if (side === 'p2') {
+    let best = -Infinity;
+    for (const m of moves) {
+      const v = practiceSearch(damasApplyMove(board, m, side), 'p1', depth - 1, alpha, beta);
+      if (v > best) best = v;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+  let best = Infinity;
+  for (const m of moves) {
+    const v = practiceSearch(damasApplyMove(board, m, side), 'p2', depth - 1, alpha, beta);
+    if (v < best) best = v;
+    if (best < beta) beta = best;
+    if (beta <= alpha) break;
+  }
+  return best;
+}
+function practiceBestMove(g) {
+  const moves = damasLegalMoves(g.board, 'p2');
+  if (!moves.length) return null;
+  if (g.depth === 1) { // facil: jugada al azar
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+  let best = null, bv = -Infinity;
+  for (const m of moves) {
+    const v = practiceSearch(damasApplyMove(g.board, m, 'p2'), 'p1', g.depth - 1, -Infinity, Infinity) + Math.random() * 0.01;
+    if (v > bv) { bv = v; best = m; }
+  }
+  return best;
+}
+
+function damasRenderPractice() {
+  const g = damasPractice;
+  const el = document.getElementById('damasBoard');
+  if (!g || !el) return;
+  const legal = g.over ? [] : damasLegalMoves(g.board, 'p1');
+  const targets = new Map();
+  for (const m of legal) if (g.selected === m.from) targets.set(m.to, m.captures.length);
+  let html = '<div class="damas-grid">';
+  for (let rr = 0; rr < 8; rr++) {
+    for (let cc = 0; cc < 8; cc++) {
+      const row = 7 - rr; // el jugador siempre abajo (p1)
+      const col = cc;
+      const dark = (row + col) % 2 === 1;
+      const sq = dark ? rcToSq(row, col) : -1;
+      const piece = sq >= 0 ? g.board[sq] : 0;
+      const sel = g.selected === sq;
+      const hint = sq >= 0 && targets.has(sq);
+      let inner = '';
+      if (piece) {
+        const cls = isP1(piece) ? 'damas-p1' : 'damas-p2';
+        inner = `<div class="damas-piece ${cls}${isKing(piece) ? ' damas-king' : ''}">${isKing(piece) ? '<div class="damas-crown">👑</div>' : ''}</div>`;
+      }
+      if (hint) inner += '<div class="damas-hint"></div>';
+      html += `<div class="damas-sq ${dark ? 'dark' : 'light'}${sel ? ' sel' : ''}" ${sq >= 0 && !g.over ? `onclick="damasPracticeClick(${sq})"` : ''}>${inner}</div>`;
+    }
+  }
+  html += '</div>';
+  el.innerHTML = html;
+  // encabezado de practica
+  const t = document.getElementById('damasTurnInfo');
+  if (t) t.textContent = g.over ? '🏆 Práctica terminada' : (g.turn === 'p1' ? '🟢 Tu turno' : '🐉 Pensando el dragón…');
+  const a1 = document.getElementById('damasP1Avatar'); if (a1) { a1.textContent = 'TÚ'; a1.classList.remove('rival'); }
+  const a2 = document.getElementById('damasP2Avatar'); if (a2) { a2.textContent = '🐉'; a2.classList.add('rival'); }
+  const n1 = document.getElementById('damasP1Name'); if (n1) n1.textContent = 'Tú';
+  const n2 = document.getElementById('damasP2Name'); if (n2) n2.textContent = 'Dragón IA';
+  const capMe = 12 - damasCountSide(g.board, 'p2');
+  const capAi = 12 - damasCountSide(g.board, 'p1');
+  const m1 = document.getElementById('damasP1Meta'); if (m1) m1.innerHTML = '<span class="damas-chip">GRATIS</span>Capturadas: ' + capMe;
+  const m2 = document.getElementById('damasP2Meta'); if (m2) m2.innerHTML = '<span class="damas-chip">GRATIS</span>Capturadas: ' + capAi;
+  const pot = document.getElementById('damasPotAmt'); if (pot) pot.textContent = 'Práctica';
+  const c1 = document.getElementById('damasP1Card'); if (c1) c1.classList.toggle('turn', !g.over && g.turn === 'p1');
+  const c2 = document.getElementById('damasP2Card'); if (c2) c2.classList.toggle('turn', !g.over && g.turn === 'p2');
+}
+
+function damasPracticeClick(sq) {
+  const g = damasPractice;
+  if (!g || g.over || g.turn !== 'p1') return;
+  const legal = damasLegalMoves(g.board, 'p1');
+  if (g.selected === null) {
+    if (mine(g.board[sq], 'p1') && legal.some((m) => m.from === sq)) { g.selected = sq; damasRenderPractice(); }
+    return;
+  }
+  const move = legal.find((m) => m.from === g.selected && m.to === sq);
+  if (move) {
+    g.board = damasApplyMove(g.board, move, 'p1');
+    g.selected = null;
+    g.turn = 'p2';
+    damasRenderPractice();
+    practiceCheckEnd() || setTimeout(practiceAITurn, 420); // pequeño instante "pensando"
+  } else if (mine(g.board[sq], 'p1') && legal.some((m) => m.from === sq)) {
+    g.selected = sq; damasRenderPractice();
+  } else {
+    g.selected = null; damasRenderPractice();
+  }
+}
+
+function practiceAITurn() {
+  const g = damasPractice;
+  if (!g || g.over || g.turn !== 'p2') return;
+  const m = practiceBestMove(g);
+  if (m) g.board = damasApplyMove(g.board, m, 'p2');
+  g.turn = 'p1';
+  damasRenderPractice();
+  practiceCheckEnd();
+}
+
+function practiceCheckEnd() {
+  const g = damasPractice;
+  if (!g || g.over) return false;
+  const myCount = damasCountSide(g.board, 'p1');
+  const aiCount = damasCountSide(g.board, 'p2');
+  const myMoves = damasLegalMoves(g.board, 'p1').length;
+  const aiMoves = damasLegalMoves(g.board, 'p2').length;
+  let msg = null;
+  if (aiCount === 0 || aiMoves === 0) msg = '🏆 ¡Le ganaste al dragón! ¿Listo para apostar de verdad?';
+  else if (myCount === 0 || myMoves === 0) msg = '🐉 El dragón te venció. ¡Otra vez y le vas a ganar!';
+  if (!msg) return false;
+  g.over = true;
+  const t = document.getElementById('damasTurnInfo');
+  if (t) t.textContent = msg;
+  const box = document.getElementById('damasActionsBox');
+  if (box) box.innerHTML = '<button class="btnY" style="width:100%;margin-top:10px" onclick="damasRestartPractice()">🎯 Jugar otra vez</button>';
+  damasRenderPractice();
+  return true;
+}
+
+function damasRestartPractice() {
+  const g = damasPractice;
+  if (!g) return;
+  damasStartPractice(g.depth);
+}
+
 // ---------------- lobby ----------------
 async function damasRefreshLobby() {
   const el = document.getElementById('damasLobby');
