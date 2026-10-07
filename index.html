@@ -74,8 +74,10 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 .damas-muted.err{color:var(--red)}
 .damas-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;margin:8px 0;font-size:13px;line-height:1.6}
 .damas-card button{margin-top:8px}
-.damas-grid{display:grid;grid-template-columns:repeat(8,1fr);width:min(100%,340px);aspect-ratio:1/1;border:2px solid var(--border);border-radius:8px;overflow:hidden}
-.damas-sq{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;position:relative}
+#damasBoard{position:relative;width:min(100%,340px);margin:0 auto}
+#damasBoard::before{content:'';display:block;padding-top:100%}
+.damas-grid{position:absolute;top:0;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%;border:2px solid var(--border);border-radius:8px;overflow:hidden}
+.damas-sq{display:flex;align-items:center;justify-content:center;position:relative;min-width:0;min-height:0}
 .damas-sq.light{background:#2b313a}
 .damas-sq.dark{background:#151a21;cursor:pointer}
 .damas-sq.sel{background:rgba(240,185,11,.35)}
@@ -345,7 +347,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       </div>
       <div id="damasTurnInfo" class="damas-turn">—</div>
       <div class="damas-boardwrap">
-        <div id="damasBoard" style="display:flex;justify-content:center"></div>
+        <div id="damasBoard"></div>
         <div class="damas-emotelayer" id="damasEmoteLayer"></div>
       </div>
       <div class="damas-emotebar" id="damasEmoteBar">
