@@ -379,7 +379,8 @@ async function notifyDragon(text) {
 }
 
 // ============================================================
-module.exports = async (req, res) => {
+const wrap = require('./_cors');
+module.exports = wrap(async (req, res) => {
   const body = (req.body && typeof req.body === 'object') ? req.body : {};
   const mode = String((body && body.mode) || '').toLowerCase();
 
@@ -499,4 +500,4 @@ module.exports = async (req, res) => {
   } catch (e) {
     return res.status(500).json(Object.assign({ status: 'error' }, log, { error: String(e) }));
   }
-};
+});

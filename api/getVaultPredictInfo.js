@@ -65,7 +65,8 @@ function decodeDepositInfo(hex) {
 const MAX_SCAN = 300; // máx. mercados históricos a escanear (cubre meses de largos)
 let cache = null; // { ts, base } — caché de datos no-dependientes del usuario
 
-module.exports = async (req, res) => {
+const wrap = require('./_cors');
+module.exports = wrap(async (req, res) => {
   try {
     let address = '';
     try {
@@ -210,4 +211,4 @@ module.exports = async (req, res) => {
   } catch (e) {
     return res.status(502).json({ error: 'Error consultando contratos', detail: String(e) });
   }
-};
+});

@@ -4,4 +4,5 @@ try { report.secp256k1 = !!(require('@noble/secp256k1').sign); } catch (e) { rep
 try { report.hmac = !!require('@noble/hashes/hmac').hmac; } catch (e) { report.hmac = String(e); }
 try { report.sha256 = !!require('@noble/hashes/sha256').sha256; } catch (e) { report.sha256 = String(e); }
 try { report.sha3 = !!require('@noble/hashes/sha3').keccak_256; } catch (e) { report.sha3 = String(e); }
-module.exports = (req, res) => res.status(200).json(report);
+const wrap = require('./_cors');
+module.exports = wrap((req, res) => res.status(200).json(report));

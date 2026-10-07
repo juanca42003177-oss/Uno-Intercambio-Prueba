@@ -103,14 +103,14 @@ const VAULTS = [
 ];
 const OWNER = '0x49909C04B0C620CFe489b4C93B5A4A6312135E28';
 const CHAIN_ID = 480;
-const API44_PRICES = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
+const VERCEL_PRICES_URL = 'https://dragontrade.vercel.app/api/getMarketPrices';
 var VERCEL_API_ADMIN = null;
 async function apiPricesUrl() {
   if (VERCEL_API_ADMIN === null) {
     try { var r = await fetch('/api/health'); var j = await r.json(); VERCEL_API_ADMIN = !!(j && j.ok); }
     catch (e) { VERCEL_API_ADMIN = false; }
   }
-  return VERCEL_API_ADMIN ? '/api/getMarketPrices' : API44_PRICES;
+  return VERCEL_API_ADMIN ? '/api/getMarketPrices' : VERCEL_PRICES_URL;
 }
 const PREDICT_ADDRESS = '0xEB6a656890C9990E685c7A20EfE978740fbF9109';
 const PREDICT_ABI = [

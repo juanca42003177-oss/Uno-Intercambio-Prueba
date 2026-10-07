@@ -92,7 +92,8 @@ async function coinbaseCandles(pair) {
   return out.sort((a, b) => a[0] - b[0]).slice(-288);
 }
 
-module.exports = async (req, res) => {
+const wrap = require('./_cors');
+module.exports = wrap(async (req, res) => {
   const body = req.body || {};
   let sym = String(body.sym || (req.query && req.query.sym) || '').trim();
   if (!sym) return res.status(400).json({ error: 'sym requerido' });
@@ -128,4 +129,4 @@ module.exports = async (req, res) => {
   const data = { sym, series, source, hasHistory: series.length >= 3, ts: Date.now() };
   histCache[sym] = { data, ts: Date.now() };
   return res.status(200).json(data);
-};
+});
