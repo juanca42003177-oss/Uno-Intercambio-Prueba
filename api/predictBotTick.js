@@ -10,15 +10,11 @@
 // Ejecutar cada 5-10 min con un cron externo gratis (cron-job.org), porque
 // el plan Hobby de Vercel solo permite 1 cron/día.
 
-let secpGetPublicKey, secpSign, secpEtc, hmac, sha256, keccak_256;
-var MODULE_LOAD_ERROR = null;
-try {
-  const s = require('@noble/secp256k1');
-  secpGetPublicKey = s.getPublicKey; secpSign = s.sign; secpEtc = s.etc;
-  hmac = require('@noble/hashes/hmac').hmac;
-  sha256 = require('@noble/hashes/sha256').sha256;
-  keccak_256 = require('@noble/hashes/sha3').keccak_256;
-} catch (e) { MODULE_LOAD_ERROR = String(e); }
+// @noble/hashes trae build CJS (require OK); @noble/secp256k1 en Vercel es
+// ESM puro (ERR_REQUIRE_ESM): se carga con import() dinamico la primera vez.
+const { hmac } = require('@noble/hashes/hmac');
+const { sha256 } = require('@noble/hashes/sha256');
+const { keccak_256 } = require('@noble/hashes/sha3');
 
 function concatBytes(...arrs) {
   const len = arrs.reduce((x, a) => x + a.length, 0);
@@ -27,7 +23,15 @@ function concatBytes(...arrs) {
   for (const a of arrs) { out.set(a, o); o += a.length; }
   return out;
 }
-secpEtc.hmacSha256Sync = (key, ...msgs) => hmac(sha256, key, concatBytes(...msgs));
+
+var _secp = null;
+async function ensureSecp() {
+  if (_secp) return _secp;
+  const s = await import('@noble/secp256k1');
+  s.etc.hmacSha256Sync = (key, ...msgs) => hmac(sha256, key, concatBytes(...msgs));
+  _secp = { getPublicKey: s.getPublicKey, sign: s.sign };
+  return _secp;
+}
 
 const CHAIN_ID = 480;
 const PREDICT_ADDRESS = '0xeb6a656890c9990e685c7a20efe978740fbf9109';
@@ -134,12 +138,13 @@ function hexBytes(hexNoPrefix) {
 }
 
 let _botAddr = '';
-function botAddress() {
+async function botAddress() {
   if (_botAddr) return _botAddr;
   const env = process.env.PREDICT_BOT_ADDRESS;
   if (env) { _botAddr = env; return _botAddr; }
   const priv = (process.env.PREDICT_BOT_PRIVATE_KEY || '').replace(/^0x/, '').trim();
-  const pub = secpGetPublicKey(priv, false);
+  const secp = await ensureSecp();
+  const pub = secp.getPublicKey(priv, false);
   const hash = keccak_256(pub.slice(1));
   let addr = '0x';
   for (let i = 12; i < 20; i++) addr += hash[i].toString(16).padStart(2, '0');
@@ -151,11 +156,13 @@ async function sendTx(to, data) {
   const priv = (process.env.PREDICT_BOT_PRIVATE_KEY || '').replace(/^0x/, '').trim();
   if (priv.length !== 64) throw new Error('PREDICT_BOT_PRIVATE_KEY no configurada');
 
-  const nonce = await rpc('eth_getTransactionCount', [botAddress(), 'pending']);
+  const from = await botAddress();
+  const secp = await ensureSecp();
+  const nonce = await rpc('eth_getTransactionCount', [from, 'pending']);
   const gasPrice = await rpc('eth_gasPrice', []);
   let gasLimit = '';
   try {
-    gasLimit = await rpc('eth_estimateGas', [{ from: botAddress(), to, data }, 'latest']);
+    gasLimit = await rpc('eth_estimateGas', [{ from, to, data }, 'latest']);
   } catch (e) { gasLimit = '0x' + FEE_GAS_LIMIT.toString(16); }
 
   const unsigned = rlpList([
@@ -170,7 +177,7 @@ async function sendTx(to, data) {
     rlpItem(''),
   ]);
   const msgHash = keccak_256(hexBytes(unsigned));
-  const sig = secpSign(msgHash, priv);
+  const sig = secp.sign(msgHash, priv);
   const v = 35 + 2 * CHAIN_ID + Number(sig.recovery);
   const signed = rlpList([
     rlpItem(numHex(strip(nonce))),
@@ -364,19 +371,17 @@ async function notifyDragon(text) {
 
 // ============================================================
 module.exports = async (req, res) => {
-  if (MODULE_LOAD_ERROR) {
-    return res.status(500).json({ status: 'module_load_error', error: MODULE_LOAD_ERROR });
-  }
   const body = (req.body && typeof req.body === 'object') ? req.body : {};
   const mode = String((body && body.mode) || '').toLowerCase();
 
   if (mode === 'selftest') {
     try {
-      const addr = botAddress();
+      const secp = await ensureSecp();
+      const addr = await botAddress();
       const priv = (process.env.PREDICT_BOT_PRIVATE_KEY || '').replace(/^0x/, '').trim();
       const okPriv = priv.length === 64;
       const msgHash = keccak_256(new TextEncoder().encode('dragon-trade-selftest'));
-      const sig = okPriv ? secpSign(msgHash, priv) : null;
+      const sig = okPriv ? secp.sign(msgHash, priv) : null;
       return res.status(200).json({
         signing_ok: !!(sig && sig.r),
         bot_address: addr,
