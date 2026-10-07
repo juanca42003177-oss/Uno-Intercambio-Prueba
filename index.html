@@ -362,7 +362,6 @@ const CONTRACTS = {
 };
 
 const API_PRICES   = 'https://solene-539c4635.base44.app/functions/getMarketPrices';
-const API_PRICE_HIST = 'https://solene-539c4635.base44.app/functions/getPriceHistory';
 const API_BALANCES = 'https://solene-539c4635.base44.app/functions/getWalletBalances';
 const API_NOTIFY   = 'https://solene-539c4635.base44.app/functions/notifySwap';
 
@@ -1072,7 +1071,7 @@ async function doSwap() {
     // backend (fire-and-forget, nunca bloquea ni rompe si falla) para poder
     // ver la causa exacta del revert sin depender de que el usuario la lea.
     try {
-      fetch('https://solene-539c4635.base44.app/functions/logSwapError', {
+      fetch(await apiEndpoint('logSwapError'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1648,7 +1647,7 @@ async function loadPriceHistory(sym) {
   if (st.fetchedAt && Date.now() - st.fetchedAt < 5 * 60 * 1000) return;
   st.loading = true;
   try {
-    var res = await fetch(API_PRICE_HIST, {
+    var res = await fetch(await apiEndpoint('getPriceHistory'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sym: sym })
