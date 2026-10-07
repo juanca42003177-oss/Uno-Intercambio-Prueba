@@ -316,6 +316,21 @@ const PREDICT_ADDRESS  = '0xEB6a656890C9990E685c7A20EfE978740fbF9109';
 const RESOLVER_ADDRESS = '0x49909c04b0c620cfe489b4c93b5a4a6312135e28'; // wallet de Juan
 const API_VAULT_PREDICT = 'https://solene-539c4635.base44.app/functions/getVaultPredictInfo';
 
+// ---- Endpoints: funciones Vercel (/api) cuando corre en Vercel, si no
+// Base44, si no respaldo directo del navegador (no44). ----
+const API44 = 'https://solene-539c4635.base44.app/functions/';
+var VERCEL_API = null; // null = sin detectar aún
+async function apiEndpoint(fn) {
+  if (VERCEL_API === null) {
+    try {
+      var r = await fetch('/api/health');
+      var j = await r.json();
+      VERCEL_API = !!(j && j.ok);
+    } catch (e) { VERCEL_API = false; }
+  }
+  return VERCEL_API ? ('/api/' + fn) : (API44 + fn);
+}
+
 const FEE_BPS_NORMAL  = 30n;   // 0.3%
 const FEE_BPS_HARD    = 100n;  // 1% tokens difíciles
 const HARD_FEE_TOKENS = new Set(['DNA', 'AXO', 'PVPB', 'HUB', 'CHAD', 'uDOGE', 'uXRP']); // SUSHI y DIAMANTE vuelven a comisión normal 0.3% (no tenían problema real)
@@ -385,7 +400,7 @@ function toRawAmount(val, decimals) {
 
 async function sendTelegramNotification(montoUsd, kind, extra) {
   try {
-    await fetch(API_NOTIFY, {
+    await fetch(await apiEndpoint('notifySwap'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -563,7 +578,7 @@ async function quietRefreshBalances() {
   balancesRefreshPending = true;
   var accountAtStart = currentAccount;
   try {
-    var res = await fetch(API_BALANCES, {
+    var res = await fetch(await apiEndpoint('getWalletBalances'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: currentAccount })
@@ -624,7 +639,7 @@ async function loadRealBalances() {
   loadingBalances = true;
   showOk('Cargando saldos...', '⏳');
   try {
-    var res = await fetch(API_BALANCES, {
+    var res = await fetch(await apiEndpoint('getWalletBalances'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: currentAccount })
@@ -920,7 +935,7 @@ function resolveAddr(sym) {
 
 async function quoteBestPrice(tokenIn, tokenOut, amountIn) {
   try {
-    var r = await fetch('https://solene-539c4635.base44.app/functions/quoteSwap', {
+    var r = await fetch(await apiEndpoint('quoteSwap'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn.toString() })
@@ -1111,7 +1126,7 @@ function copyAddr() {
 async function fetchLivePrices() {
   if (document.hidden) return;
   try {
-    var res = await fetch(API_PRICES);
+    var res = await fetch(await apiEndpoint('getMarketPrices'));
     var data = await res.json();
     if ((!res.ok || !data || !data.prices) && window.NO44) {
       data = await no44Prices(); // respaldo directo sin Base44
@@ -1210,7 +1225,7 @@ async function loadVaultPredict() {
   vaultPredictRefreshPending = true;
   var accountAtStart = currentAccount;
   try {
-    var res = await fetch(API_VAULT_PREDICT, {
+    var res = await fetch(await apiEndpoint('getVaultPredictInfo'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
