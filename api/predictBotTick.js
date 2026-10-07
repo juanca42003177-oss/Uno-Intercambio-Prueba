@@ -10,10 +10,15 @@
 // Ejecutar cada 5-10 min con un cron externo gratis (cron-job.org), porque
 // el plan Hobby de Vercel solo permite 1 cron/día.
 
-const { getPublicKey: secpGetPublicKey, sign: secpSign, etc: secpEtc } = require('@noble/secp256k1');
-const { hmac } = require('@noble/hashes/hmac');
-const { sha256 } = require('@noble/hashes/sha256');
-const { keccak_256 } = require('@noble/hashes/sha3');
+let secpGetPublicKey, secpSign, secpEtc, hmac, sha256, keccak_256;
+var MODULE_LOAD_ERROR = null;
+try {
+  const s = require('@noble/secp256k1');
+  secpGetPublicKey = s.getPublicKey; secpSign = s.sign; secpEtc = s.etc;
+  hmac = require('@noble/hashes/hmac').hmac;
+  sha256 = require('@noble/hashes/sha256').sha256;
+  keccak_256 = require('@noble/hashes/sha3').keccak_256;
+} catch (e) { MODULE_LOAD_ERROR = String(e); }
 
 function concatBytes(...arrs) {
   const len = arrs.reduce((x, a) => x + a.length, 0);
@@ -359,6 +364,9 @@ async function notifyDragon(text) {
 
 // ============================================================
 module.exports = async (req, res) => {
+  if (MODULE_LOAD_ERROR) {
+    return res.status(500).json({ status: 'module_load_error', error: MODULE_LOAD_ERROR });
+  }
   const body = (req.body && typeof req.body === 'object') ? req.body : {};
   const mode = String((body && body.mode) || '').toLowerCase();
 
