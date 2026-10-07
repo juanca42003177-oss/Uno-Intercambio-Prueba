@@ -5,7 +5,7 @@
 // lobby/tablero + relay de jugadas via /api/damasMoves + liquidacion on-chain
 // via el contrato DamasPot (cada jugador vota el resultado con su propia tx).
 
-const DAMAS_ADDRESS = '0x9608221C0f1A3B94657Ef0eE5A792E28191e5004'; // actualizar tras redesplegar
+const DAMAS_ADDRESS = '0x05733f397AD3833F83FfC0182D0a19F84261eF7F'; // actualizar tras redesplegar
 const DAMAS_WLD = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
 const DAMAS_MOVES_URL = 'https://intercambiox.vercel.app/api/damasMoves'; // relay central (CORS abierto)
 

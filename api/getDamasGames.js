@@ -3,7 +3,7 @@
 // (igual patron que getVaultPredictInfo). Cache server-side de 10s.
 const { rpcBatch, hexToBigInt, padNum } = require('./_rpc');
 
-const DAMAS_ADDRESS = process.env.DAMAS_ADDRESS || '0x9608221C0f1A3B94657Ef0eE5A792E28191e5004'; // actualizar tras redesplegar
+const DAMAS_ADDRESS = process.env.DAMAS_ADDRESS || '0x05733f397AD3833F83FfC0182D0a19F84261eF7F'; // actualizar tras redesplegar
 const MAX_SCAN = 200; // ultimas N partidas a escanear (cubre meses de historial)
 
 const SEL = {
