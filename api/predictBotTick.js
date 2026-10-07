@@ -216,17 +216,26 @@ async function waitReceipt(hash) {
 }
 
 // ---- Precios ----
+// Kraken OHLC: prueba velas de 5 min y, si el ts quedo fuera del historial
+// (solo ~2 dias), escala a velas de 1 hora (~30 dias) y luego diarias (~1 año).
+// Sin esto, un mercado de 72h/1 semana nunca podia leer su precio de apertura.
 async function krakenPriceAt(pair, ts) {
-  const res = await fetch('https://api.kraken.com/0/public/OHLC?pair=' + pair + '&interval=5', { headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error('kraken HTTP ' + res.status);
-  const j = await res.json();
-  if (j.error && j.error.length) throw new Error('kraken: ' + j.error[0]);
-  const key = Object.keys(j.result || {}).find((k) => k !== 'last');
-  const candles = key ? j.result[key] : [];
-  let best = null;
-  for (const c of candles) if (Number(c[0]) <= ts) best = c;
-  if (!best) throw new Error('kraken: sin vela para ts ' + ts);
-  return parseFloat(String(best[4]));
+  let lastErr = null;
+  for (const interval of [5, 60, 1440]) {
+    try {
+      const res = await fetch('https://api.kraken.com/0/public/OHLC?pair=' + pair + '&interval=' + interval, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error('kraken HTTP ' + res.status);
+      const j = await res.json();
+      if (j.error && j.error.length) throw new Error('kraken: ' + j.error[0]);
+      const key = Object.keys(j.result || {}).find((k) => k !== 'last');
+      const candles = key ? j.result[key] : [];
+      let best = null;
+      for (const c of candles) if (Number(c[0]) <= ts) best = c;
+      if (!best) throw new Error('kraken: sin vela para ts ' + ts);
+      return parseFloat(String(best[4]));
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 
 async function coinbasePriceAt(product, ts) {
