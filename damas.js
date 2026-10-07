@@ -180,6 +180,41 @@ function damasFmtWld(weiStr) {
   return n.toFixed(n < 10 ? 2 : 0);
 }
 
+// ---------------- emojis estilo Clash ----------------
+let damasLastEmoteTs = 0;
+function damasSendEmote(e) {
+  const g = damasCurrentGame;
+  if (!g) return;
+  if (Date.now() - damasLastEmoteTs < 2000) return; // no spamear
+  damasLastEmoteTs = Date.now();
+  fetch(DAMAS_MOVES_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'emote', gameId: g.id, by: currentAccount, emote: e }),
+  }).catch(() => {});
+  damasShowEmote(e, g.me); // mostrar el propio al instante
+}
+function damasShowEmote(e, side) {
+  const layer = document.getElementById('damasEmoteLayer');
+  if (!layer) return;
+  const d = document.createElement('div');
+  d.className = 'damas-float';
+  d.textContent = e;
+  d.style.left = side === 'p1' ? '10%' : '74%';
+  layer.appendChild(d);
+  setTimeout(() => d.remove(), 2500);
+}
+function damasHandleEmotes(emotes) {
+  const g = damasCurrentGame;
+  if (!g || !Array.isArray(emotes)) return;
+  for (const em of emotes) {
+    if (!em || typeof em.ts !== 'number' || em.ts <= g.emotesSeen) continue;
+    g.emotesSeen = em.ts;
+    const by = String(em.by || '').toLowerCase();
+    if (by === (currentAccount || '').toLowerCase()) continue; // el propio ya se mostro
+    damasShowEmote(em.emote, by === g.p1.toLowerCase() ? 'p1' : 'p2');
+  }
+}
+
 async function damasCreateGame(stakeWldStr) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
   const amountWei = toRawAmount(parseFloat(stakeWldStr), 18);
@@ -231,7 +266,9 @@ async function damasOpenActiveGame(id) {
     const sj = await sr.json();
     const log = (sj && sj.log) || [];
     const { board, turn } = damasRebuild(log);
-    damasCurrentGame = { id, me: side, p1: g0.p1, p2: g0.p2, stake: g0.stake, status: g0.status, board, turn, log, selected: null, settling: false };
+    let emotesSeen = 0;
+    for (const em of ((sj && sj.emotes) || [])) if (em && typeof em.ts === 'number') emotesSeen = Math.max(emotesSeen, em.ts);
+    damasCurrentGame = { id, me: side, p1: g0.p1, p2: g0.p2, stake: g0.stake, status: g0.status, board, turn, log, selected: null, settling: false, emotesSeen };
     document.getElementById('damasLobbyView').style.display = 'none';
     document.getElementById('damasBoardView').style.display = 'block';
     damasRenderBoard();
@@ -260,6 +297,7 @@ async function damasPollMoves() {
     const r = await fetch(stateUrl + '?action=state&gameId=' + g.id);
     const j = await r.json();
     const log = (j && j.log) || [];
+    damasHandleEmotes(j && j.emotes);
     if (log.length !== g.log.length) {
       const rb = damasRebuild(log);
       g.log = log; g.board = rb.board; g.turn = rb.turn; g.selected = null;
@@ -274,6 +312,10 @@ function damasRenderBoard() {
   const el = document.getElementById('damasBoard');
   if (!g || !el) return;
   const flip = g.me === 'p2'; // cada jugador ve sus piezas abajo
+  // jugadas legales del turno actual (para pintar pistas)
+  const legal = g.turn === g.me ? damasLegalMoves(g.board, g.me) : [];
+  const targets = new Map(); // sq destino -> capturas
+  for (const m of legal) if (g.selected === m.from) targets.set(m.to, m.captures.length);
   let html = '<div class="damas-grid">';
   for (let rr = 0; rr < 8; rr++) {
     for (let cc = 0; cc < 8; cc++) {
@@ -283,19 +325,45 @@ function damasRenderBoard() {
       const sq = dark ? rcToSq(row, col) : -1;
       const piece = sq >= 0 ? g.board[sq] : 0;
       const sel = g.selected === sq;
+      const hint = sq >= 0 && targets.has(sq);
       let inner = '';
       if (piece) {
         const cls = isP1(piece) ? 'damas-p1' : 'damas-p2';
-        inner = `<div class="damas-piece ${cls}${isKing(piece) ? ' damas-king' : ''}"></div>`;
+        inner = `<div class="damas-piece ${cls}${isKing(piece) ? ' damas-king' : ''}">${isKing(piece) ? '<div class="damas-crown">👑</div>' : ''}</div>`;
       }
+      if (hint) inner += '<div class="damas-hint"></div>';
       html += `<div class="damas-sq ${dark ? 'dark' : 'light'}${sel ? ' sel' : ''}" ${sq >= 0 ? `onclick="damasClickSquare(${sq})"` : ''}>${inner}</div>`;
     }
   }
   html += '</div>';
-  const turnTxt = g.turn === g.me ? '🟢 Tu turno' : '⏳ Turno del rival';
+  const turnTxt = g.settling ? '🏆 Fin de la partida' : (g.turn === g.me ? '🟢 Tu turno' : '⏳ Turno del rival');
   const tEl = document.getElementById('damasTurnInfo');
   if (tEl) tEl.textContent = turnTxt;
   el.innerHTML = html;
+  damasUpdateHeader();
+}
+
+function damasShortAddr(a) { return a ? a.slice(0, 6) + '…' + a.slice(-4) : '?'; }
+
+// encabezado con jugadores, bote, capturadas y turno iluminado
+function damasUpdateHeader() {
+  const g = damasCurrentGame;
+  if (!g) return;
+  const p1Name = document.getElementById('damasP1Name');
+  const p2Name = document.getElementById('damasP2Name');
+  if (p1Name) p1Name.textContent = damasShortAddr(g.p1) + (g.me === 'p1' ? ' (tú)' : '');
+  if (p2Name) p2Name.textContent = damasShortAddr(g.p2) + (g.me === 'p2' ? ' (tú)' : '');
+  const a1 = document.getElementById('damasP1Avatar'); if (a1) a1.textContent = (g.p1 || '?').slice(2, 3).toUpperCase();
+  const a2 = document.getElementById('damasP2Avatar'); if (a2) a2.textContent = (g.p2 || '?').slice(2, 3).toUpperCase();
+  const capP1 = 12 - damasCountSide(g.board, 'p2'); // piezas que p1 comio
+  const capP2 = 12 - damasCountSide(g.board, 'p1');
+  const m1 = document.getElementById('damasP1Meta'); if (m1) m1.innerHTML = `<span class="damas-chip">${damasFmtWld(g.stake)} WLD</span>Capturadas: ${capP1}`;
+  const m2 = document.getElementById('damasP2Meta'); if (m2) m2.innerHTML = `<span class="damas-chip">${damasFmtWld(g.stake)} WLD</span>Capturadas: ${capP2}`;
+  const pot = document.getElementById('damasPotAmt'); if (pot) pot.textContent = damasFmtWld((BigInt(g.stake) * 2n).toString()) + ' WLD';
+  const c1 = document.getElementById('damasP1Card');
+  const c2 = document.getElementById('damasP2Card');
+  if (c1) c1.classList.toggle('turn', !g.settling && g.turn === 'p1');
+  if (c2) c2.classList.toggle('turn', !g.settling && g.turn === 'p2');
 }
 
 function damasClickSquare(sq) {
@@ -350,15 +418,27 @@ function damasCheckGameOver() {
   if (!winnerSide) return;
   g.settling = true;
   const winnerAddr = winnerSide === 'p1' ? g.p1 : g.p2;
-  const tEl = document.getElementById('damasTurnInfo');
-  if (tEl) tEl.textContent = (winnerSide === g.me ? '🏆 ¡Ganaste!' : '😔 Perdiste') + ' — confirmá el resultado para liquidar el pozo.';
-  damasShowConfirmBtn(winnerAddr);
+  damasRenderBoard();
+  damasShowConfirmBtn(winnerAddr, winnerSide);
 }
 
-function damasShowConfirmBtn(winnerAddr) {
+function damasShowConfirmBtn(winnerAddr, winnerSide) {
+  const g = damasCurrentGame;
   const box = document.getElementById('damasActionsBox');
-  if (!box) return;
-  box.innerHTML = `<button class="btnY" onclick="damasConfirmResult('${winnerAddr}')">✅ Confirmar resultado y cobrar</button>`;
+  if (!box || !g) return;
+  const potWei = (BigInt(g.stake) * 2n).toString();
+  const feeWei = (BigInt(potWei) * 100n / 10000n).toString(); // 1% flat
+  const payWei = (BigInt(potWei) - BigInt(feeWei)).toString();
+  const win = winnerSide === g.me;
+  box.innerHTML = `
+    <div class="damas-breakdown">
+      <div style="font-size:16px;font-weight:900">${win ? '🏆 ¡Ganaste!' : '😔 Ganó el rival'}</div>
+      <div class="small" style="margin:4px 0 8px">Confirmá el resultado para liquidar el pozo en cadena.</div>
+      <div class="row"><span>Bote total</span><b>${damasFmtWld(potWei)} WLD</b></div>
+      <div class="row"><span>Comisión Dragon Trade (1%)</span><b>${damasFmtWld(feeWei)} WLD</b></div>
+      <div class="row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Recibe el ganador</span><b>${damasFmtWld(payWei)} WLD</b></div>
+      <button class="btnY" style="margin-top:10px;width:100%" onclick="damasConfirmResult('${winnerAddr}')">✅ Confirmar resultado y cobrar</button>
+    </div>`;
 }
 
 async function damasConfirmResult(winnerAddr) {
@@ -381,7 +461,14 @@ async function damasPollSettleStatus() {
     if (!g0) return;
     if (g0.status === 3) {
       const box = document.getElementById('damasActionsBox');
-      if (box) box.innerHTML = '<div class="damas-muted" style="color:var(--green);font-weight:800">✅ Pozo pagado. Partida terminada.</div>';
+      const potWei = (BigInt(g.stake) * 2n).toString();
+      const payWei = (BigInt(potWei) * 99n / 100n).toString();
+      if (box) box.innerHTML = `
+        <div class="damas-breakdown">
+          <div style="font-size:15px;font-weight:900;color:var(--green)">✅ Pozo pagado. Partida terminada.</div>
+          <div class="row" style="margin-top:6px"><span>El ganador recibió</span><b>${damasFmtWld(payWei)} WLD</b></div>
+          <div class="row"><span>Comisión Dragon Trade (1%)</span><b>${damasFmtWld((BigInt(potWei) - BigInt(payWei)).toString())} WLD</b></div>
+        </div>`;
       return;
     }
     if (g0.status === 4) { damasShowDispute(); return; }
