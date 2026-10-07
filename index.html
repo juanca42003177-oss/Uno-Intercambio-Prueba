@@ -581,6 +581,7 @@ function go(page) {
     document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(currentAccount);
   }
   if (currentAccount && Date.now() - lastBalancesRefresh > 30000) quietRefreshBalances();
+  if (Date.now() - lastPricesFetch > 20000) fetchLivePrices(); // precios frescos al entrar
   if (page === 'swap') { fillSelects(); calc(); }
   if (page === 'send') { fillSendSelect(); updateSendBal(); }
   if (page === 'earn' || page === 'pred') { loadVaultPredict(); }
@@ -1243,8 +1244,10 @@ function copyAddr() {
   }
 }
 
+var lastPricesFetch = 0;
 async function fetchLivePrices() {
   if (document.hidden) return;
+  lastPricesFetch = Date.now();
   try {
     var res = await fetch(await apiEndpoint('getMarketPrices'));
     var data = await res.json();
@@ -1292,9 +1295,10 @@ window.addEventListener('load', function() {
   setInterval(function() {
     if (!document.hidden && currentAccount && Date.now() - lastBalancesRefresh >= 60000) quietRefreshBalances();
   }, 15000);
-  setInterval(fetchLivePrices, 60000);
+  setInterval(fetchLivePrices, 30000);
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
+      lastPricesFetch = 0;
       fetchLivePrices();
       if (currentAccount) quietRefreshBalances();
     }
