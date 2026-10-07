@@ -7,6 +7,7 @@
 
 const DAMAS_ADDRESS = '0x9608221C0f1A3B94657Ef0eE5A792E28191e5004'; // actualizar tras redesplegar
 const DAMAS_WLD = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
+const DAMAS_MOVES_URL = 'https://intercambiox.vercel.app/api/damasMoves'; // relay central (CORS abierto)
 
 // ---- codificacion de las llamadas del contrato (mismo estilo que el resto de index.html) ----
 function encodeDamasUint(n) { return BigInt(n).toString(16).padStart(64, '0'); }
@@ -225,7 +226,7 @@ async function damasOpenActiveGame(id) {
     if (!g0) { showOk('Partida no encontrada', '❌'); return; }
     const myAddr = currentAccount.toLowerCase();
     const side = g0.p1.toLowerCase() === myAddr ? 'p1' : 'p2';
-    const stateUrl = await apiEndpoint('damasMoves');
+    const stateUrl = DAMAS_MOVES_URL;
     const sr = await fetch(stateUrl + '?action=state&gameId=' + id);
     const sj = await sr.json();
     const log = (sj && sj.log) || [];
@@ -255,7 +256,7 @@ async function damasPollMoves() {
   const g = damasCurrentGame;
   if (!g || g.settling) return;
   try {
-    const stateUrl = await apiEndpoint('damasMoves');
+    const stateUrl = DAMAS_MOVES_URL;
     const r = await fetch(stateUrl + '?action=state&gameId=' + g.id);
     const j = await r.json();
     const log = (j && j.log) || [];
@@ -322,7 +323,7 @@ async function damasSendMove(move) {
   const idx = g.log.length;
   const entry = { type: 'move', move, by: g.me };
   try {
-    const url = await apiEndpoint('damasMoves');
+    const url = DAMAS_MOVES_URL;
     const r = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'move', gameId: g.id, idx, entry }),
