@@ -119,6 +119,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   <div class="top">
     <div class="avatar" style="padding:2px;overflow:hidden;border:2px solid #f0b90b"><img src="logos/app-logo.png" alt="Dragon Trade" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
     <div style="flex:1"><b style="font-size:16px">Dragon Trade</b><div class="small" id="walletInfo">No conectado • World Chain</div></div>
+    <button class="btnConnect" style="width:38px;margin-right:6px" title="Premios" onclick="showPrizes()">🎁</button>
     <button class="btnConnect" style="width:38px;margin-right:6px" title="Cómo funciona" onclick="showWelcome()">❓</button>
     <button class="btnConnect" id="btnConnect" onclick="connectWallet()">Conectar</button>
   </div>
@@ -128,24 +129,6 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
     <div class="btn" onclick="go('earn')">🏦 Bóveda</div>
     <div class="btn" onclick="go('pred')">📊 Trading</div>
     <div class="btn" onclick="go('damas')">♟️ Damas</div>
-  </div>
-  <div class="box" id="prizeCard" style="margin:12px 16px;border:1px solid var(--yellow)">
-    <div style="font-weight:800;color:var(--yellow)">🎁 Premios por usar Dragon Trade</div>
-    <div class="small" style="margin:6px 0 8px;line-height:1.5">Cuanto más intercambias, mayor es tu regalo. Todo lo que intercambias suma. Cada nivel se gana una vez:</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;font-weight:700">
-      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$50 → <span style="color:var(--yellow)">$0.03</span></div>
-      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$100 → <span style="color:var(--yellow)">$0.05</span></div>
-      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$200 → <span style="color:var(--yellow)">$0.10</span></div>
-      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$300 → <span style="color:var(--yellow)">$0.15</span></div>
-      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$500 → <span style="color:var(--yellow)">$0.30</span></div>
-    </div>
-    <div id="prizeProgWrap" style="display:none;margin-top:10px">
-      <div class="small" id="prizeProgText" style="line-height:1.5"></div>
-      <div style="height:8px;background:var(--card2);border-radius:4px;margin-top:6px;overflow:hidden">
-        <div id="prizeProgBar" style="height:100%;background:var(--yellow);width:0%;border-radius:4px"></div>
-      </div>
-    </div>
-    <button class="btnY" style="margin-top:10px;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme cuando gane un premio</button>
   </div>
   <div class="tokens" id="tokenList"></div>
 </div>
@@ -414,6 +397,29 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   <div onclick="go('damas')">♟️<span>Damas</span></div>
 </div>
 
+<div id="prizeModal" class="modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modalBox" style="max-width:420px;max-height:85vh;overflow-y:auto;text-align:left">
+    <div id="prizeCard" style="text-align:left">
+    <div style="font-weight:900;font-size:20px;text-align:center">🎁 Premios por intercambiar</div>
+    <div class="small" style="margin:6px 0 8px;line-height:1.5">Cuanto más intercambias, mayor es tu regalo. Todo lo que intercambias suma. Cada nivel se gana una vez:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;font-weight:700">
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$50 → <span style="color:var(--yellow)">$0.03</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$100 → <span style="color:var(--yellow)">$0.05</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$200 → <span style="color:var(--yellow)">$0.10</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$300 → <span style="color:var(--yellow)">$0.15</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$500 → <span style="color:var(--yellow)">$0.30</span></div>
+    </div>
+    <div id="prizeProgWrap" style="display:none;margin-top:10px">
+      <div class="small" id="prizeProgText" style="line-height:1.5"></div>
+      <div style="height:8px;background:var(--card2);border-radius:4px;margin-top:6px;overflow:hidden">
+        <div id="prizeProgBar" style="height:100%;background:var(--yellow);width:0%;border-radius:4px"></div>
+      </div>
+    </div>
+    <button class="btnY" style="margin-top:10px;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme cuando gane un premio</button>
+  </div>
+    <button class="btnConnect" style="width:100%;margin-top:10px" onclick="document.getElementById('prizeModal').style.display='none'">Cerrar</button>
+  </div>
+</div>
 <div id="welcome" class="modal" onclick="if(event.target===this)this.style.display='none'">
   <div class="modalBox" style="max-width:420px;max-height:85vh;overflow-y:auto;text-align:left">
     <div style="text-align:center">
@@ -447,6 +453,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 <script src="no44.js"></script>
 <script src="damas.js"></script>
 <script>
+function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
 if (!localStorage.getItem('dragonWelcomeKey')) setTimeout(showWelcome, 600);
 const SWAP_ROUTER_V3 = '0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6';
