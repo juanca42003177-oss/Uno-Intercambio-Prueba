@@ -308,6 +308,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
         <div class="small" style="margin:10px 0 4px">Apuesta en WLD (<span id="damasMinMax">mín 1 — máx ~$10</span>)</div>
         <input id="damasStakeInput" type="number" min="1" step="0.1" value="1" placeholder="Cantidad de WLD" style="font-size:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;width:100%;color:#eaecef">
         <button class="btnY" style="margin-top:10px" onclick="damasCreateGame(document.getElementById('damasStakeInput').value)">⚔️ Crear reto</button>
+        <button class="btnY" style="margin-top:8px;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme cuando haya retos nuevos</button>
       </div>
       <div class="box" style="margin-top:10px">
         <b style="color:var(--yellow)">🎯 Modo práctica (gratis)</b>
@@ -530,6 +531,34 @@ async function sendTelegramNotification(montoUsd, kind, extra) {
   } catch (e) {
     console.error('Error enviando notificación:', e);
   }
+  // campanita de World App: si el usuario acepto notificaciones y el swap
+  // llega a un nivel de premio ($100/$200/$300/$500), se le avisa al instante
+  if ((!kind || kind === 'swap') && montoUsd >= 100 && currentAccount) {
+    try {
+      fetch(await apiEndpoint('worldNotify'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'prize', wallet: currentAccount, usd: montoUsd })
+      }).catch(function(){});
+    } catch (e) {}
+  }
+}
+
+// suscribirse a notificaciones push de World App (permiso + registro en el servidor)
+async function subscribeWorldNotifs() {
+  if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+  try {
+    if (window.MiniKit && MiniKit.requestPermission) {
+      var p = await MiniKit.requestPermission({ permission: 'notifications' });
+      if (p && p.payload && p.payload.status === 'denied') return showOk('No activaste las notificaciones', '🔔');
+    }
+    var r = await fetch(await apiEndpoint('worldNotify'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'subscribe', wallet: currentAccount, handle: currentUserHandle || '' })
+    });
+    var j = await r.json();
+    if (j.ok) showOk('🔔 ¡Listo! Te avisaremos cuando haya retos o ganes premios', '✅');
+    else showOk(j.error || 'No se pudo activar', '⚠️');
+  } catch (e) { showOk('Error al activar notificaciones', '⚠️'); }
 }
 
 function formatCrypto(val) {

@@ -404,6 +404,13 @@ async function damasCreateGame(stakeWldStr) {
     ], 'Creando reto en World App...');
     showOk('✅ Reto creado. Esperá a que alguien lo acepte.', '✅');
     setTimeout(damasRefreshLobby, 2500);
+    // avisar por la campanita de World App a los suscritos (menos al creador)
+    try {
+      fetch('/api/worldNotify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reto', handle: currentUserHandle || 'un jugador', stake: String(stakeWldStr), fromWallet: currentAccount })
+      }).catch(function(){});
+    } catch (e2) {}
   } catch (e) { showOk('Error: ' + (e.message || e), '❌'); }
 }
 
