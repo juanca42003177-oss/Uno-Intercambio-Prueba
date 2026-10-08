@@ -12,7 +12,7 @@
 // nadie desde fuera puede mandar texto arbitrario a los usuarios, y el aviso de
 // retos esta limitado a 1 por minuto por instancia.
 
-const BRANCH = 'alerts-data';
+const BRANCH = 'damas-data'; // rama de datos del repo de Dragon (la que ya existe)
 const REPO = process.env.GITHUB_ALERTS_REPO || 'juanca42003177-oss/Uno-Intercambio-Prueba';
 const SUBS_PATH = 'notify/subs-dragon.json';
 const APP_LABEL = 'Dragon Trade';
