@@ -129,6 +129,17 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
     <div class="btn" onclick="go('pred')">📊 Trading</div>
     <div class="btn" onclick="go('damas')">♟️ Damas</div>
   </div>
+  <div class="box" id="prizeCard" style="margin:12px 16px;border:1px solid var(--yellow)">
+    <div style="font-weight:800;color:var(--yellow)">🎁 Premios por usar Dragon Trade</div>
+    <div class="small" style="margin:6px 0 8px;line-height:1.5">Cuanto más intercambias, mayor es tu regalo. Cada swap grande te lo gana:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;font-weight:700">
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$100 → <span style="color:var(--yellow)">$0.05</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$200 → <span style="color:var(--yellow)">$0.10</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$300 → <span style="color:var(--yellow)">$0.15</span></div>
+      <div style="background:var(--card2);padding:8px;border-radius:10px;text-align:center">$500 → <span style="color:var(--yellow)">$0.30</span></div>
+    </div>
+    <button class="btnY" style="margin-top:10px;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme cuando gane un premio</button>
+  </div>
   <div class="tokens" id="tokenList"></div>
 </div>
 
@@ -247,6 +258,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       <div class="small" style="margin:14px 4px 6px;font-weight:700">Mis depósitos</div>
       <div id="myDepositsList"></div>
     </div>
+    <button class="btnY" style="margin:10px 0 0;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme de mis bóvedas y premios</button>
     <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef">← Volver</button>
   </div>
 </div>
@@ -255,6 +267,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   <div class="main">
     <h3 style="text-align:center">📊 Trading — Mercado de Predicción</h3>
     <div class="small" style="text-align:center;margin-bottom:12px">Transparente: apuestan los usuarios, gana quien acierta</div>
+    <button class="btnY" style="margin:0 0 12px;background:var(--card2);color:#eaecef" onclick="subscribeWorldNotifs()">🔔 Avisarme de rondas nuevas y premios</button>
     <div class="box" style="font-size:12.5px;line-height:1.6">
       <b style="color:var(--yellow)">Modelo transparente</b><br>
       Apuestas en USDC (mínimo <span id="predMinBetTxt">$1</span>) a ALZA o BAJA. Todo va a un <b>pozo común en cadena</b>. Al resolverse, el lado que acertó se reparte el pozo (se cobra 1% una sola vez).
