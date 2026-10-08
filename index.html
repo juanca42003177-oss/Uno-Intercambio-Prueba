@@ -590,21 +590,41 @@ async function updatePrizeProgress() {
 }
 
 // suscribirse a notificaciones push de World App (permiso + registro en el servidor)
-async function subscribeWorldNotifs() {
-  if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
+
+// pide permiso de notificaciones (MiniKit 1.x y 2.x) y devuelve 'ok' | 'denied' | 'error:<detalle>'
+async function askNotifPermission() {
   try {
-    if (window.MiniKit && MiniKit.requestPermission) {
-      var p = await MiniKit.requestPermission({ permission: 'notifications' });
-      if (p && p.payload && p.payload.status === 'denied') return showOk('No activaste las notificaciones', '🔔');
+    if (!(window.MiniKit && MiniKit.requestPermission)) return 'ok'; // fuera de World App: solo registra
+    var res = await MiniKit.requestPermission({ permission: 'notifications' });
+    var st = (res && res.data && res.data.status) || (res && res.payload && res.payload.status) || (res && res.status) || '';
+    if (st === 'denied' || st === 'error') {
+      var code = (res && res.data && res.data.error_code) || (res && res.payload && res.payload.error_code) || '';
+      if (code === 'already_granted') return 'ok';
+      if (code === 'user_rejected' || code === 'already_requested' || code === 'permission_disabled') return 'denied';
+      return st === 'denied' ? 'denied' : 'error:' + (code || 'desconocido');
     }
+    return 'ok';
+  } catch (e) {
+    var m = String((e && (e.error_code || e.code || e.message)) || e || '');
+    if (/already_granted/i.test(m)) return 'ok';
+    if (/user_rejected|already_requested|permission_disabled|denied|reject/i.test(m)) return 'denied';
+    return 'error:' + m.slice(0, 80);
+  }
+}
+
+async function subscribeWorldNotifs() {
+  if (!currentAccount) { showOk('Conecta tu wallet', '⚠️'); return; }
+  var perm = await askNotifPermission();
+  if (perm === 'denied') { showOk('No tienes activadas las notificaciones. Actívalas en World App: Ajustes > Notificaciones > esta mini app.', '🔔'); return; }
+  if (perm.indexOf('error') === 0) { showOk('No se pudo pedir el permiso de notificaciones (' + perm.slice(6) + '). Cierra y abre la mini app e intenta otra vez.', '⚠️'); return; }
+  try {
     var r = await fetch(await apiEndpoint('worldNotify'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'subscribe', wallet: currentAccount, handle: currentUserHandle || '' })
     });
     var j = await r.json();
-    if (j.ok) showOk('🔔 ¡Listo! Te avisaremos cuando haya retos o ganes premios', '✅');
-    else showOk(j.error || 'No se pudo activar', '⚠️');
-  } catch (e) { showOk('Error al activar notificaciones', '⚠️'); }
+    if (j.ok) { showOk('🔔 ¡Listo! Te avisaremos cuando haya retos o ganes premios', '✅'); } else { showOk(j.error || 'No se pudo registrar tu aviso', '⚠️'); }
+  } catch (err) { showOk('Sin conexión, intenta de nuevo', '⚠️'); }
 }
 
 function formatCrypto(val) {
