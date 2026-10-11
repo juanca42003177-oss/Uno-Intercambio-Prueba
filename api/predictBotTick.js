@@ -178,7 +178,7 @@ async function botAddress() {
   const pub = secp.getPublicKey(priv, false);
   const hash = keccak_256(pub.slice(1));
   let addr = '0x';
-  for (let i = 12; i < 20; i++) addr += hash[i].toString(16).padStart(2, '0');
+  for (let i = 12; i < 32; i++) addr += hash[i].toString(16).padStart(2, '0');
   _botAddr = addr;
   return addr;
 }
