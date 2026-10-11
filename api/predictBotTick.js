@@ -140,8 +140,10 @@ function hexBytes(hexNoPrefix) {
 let _botAddr = '';
 async function botAddress() {
   if (_botAddr) return _botAddr;
-  const env = process.env.PREDICT_BOT_ADDRESS;
-  if (env) { _botAddr = env; return _botAddr; }
+  // PREDICT_BOT_ADDRESS es opcional: solo se usa si es una direccion valida.
+  // Si llegara corrupta (string gigante), se ignora y se deriva de la llave.
+  const env = (process.env.PREDICT_BOT_ADDRESS || '').trim();
+  if (/^0x[0-9a-fA-F]{40}$/.test(env)) { _botAddr = env.toLowerCase(); return _botAddr; }
   const priv = (process.env.PREDICT_BOT_PRIVATE_KEY || '').replace(/^0x/, '').trim();
   const secp = await ensureSecp();
   const pub = secp.getPublicKey(priv, false);
@@ -157,6 +159,7 @@ async function sendTx(to, data) {
   if (priv.length !== 64) throw new Error('PREDICT_BOT_PRIVATE_KEY no configurada');
 
   const from = await botAddress();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(from)) throw new Error('wallet del bot invalida (len=' + from.length + ')');
   const secp = await ensureSecp();
   const nonce = await rpc('eth_getTransactionCount', [from, 'pending']);
   const gasPrice = await rpc('eth_gasPrice', []);
