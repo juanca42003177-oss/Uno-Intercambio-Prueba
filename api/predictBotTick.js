@@ -36,7 +36,34 @@ async function ensureSecp() {
 const CHAIN_ID = 480;
 const PREDICT_ADDRESS = '0xeb6a656890c9990e685c7a20efe978740fbf9109';
 const FEE_GAS_LIMIT = 300000;
-const RPC = 'https://worldchain-mainnet.g.alchemy.com/public';
+// RPC con respaldo: si Alchemy public falla (bloqueos por IP en Vercel), se usa dRPC.
+const RPCS = [
+  'https://worldchain-mainnet.g.alchemy.com/public',
+  'https://worldchain.drpc.org',
+];
+let RPC = RPCS[0];
+async function rawRpc(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error('RPC ' + (body.method || 'batch') + ': ' + JSON.stringify(j.error));
+  return j.result;
+}
+async function rpcFailover(fn) {
+  let lastErr;
+  for (let i = 0; i < RPCS.length; i++) {
+    const url = RPCS[(RPCS.indexOf(RPC) + i) % RPCS.length];
+    try {
+      const out = await fn(url);
+      RPC = url; // este funciono: seguir con el
+      return out;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
 
 const TOKENS = [
   { sym: 'WLD', source: 'kraken', kraken: 'WLDUSD', coinbase: 'WLD-USD' },
@@ -75,26 +102,28 @@ function longDurFromLabel(label) {
 }
 
 async function rpc(method, params = []) {
-  const res = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  });
-  const j = await res.json();
-  if (j.error) throw new Error('RPC ' + method + ': ' + JSON.stringify(j.error));
-  return j.result;
+  return rpcFailover((url) => rawRpc(url, { jsonrpc: '2.0', id: 1, method, params }));
 }
 
 async function rpcBatch(calls) {
   if (calls.length === 0) return {};
-  const res = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(calls.map((c) => ({ jsonrpc: '2.0', id: c.id, method: c.method, params: c.params }))),
-  });
-  const j = await res.json();
+  // dRPC publico limita batches: trocear en grupos de 3
   const out = {};
-  for (const r of j) out[r.id] = r.result;
+  const groups = [];
+  for (let i = 0; i < calls.length; i += 3) groups.push(calls.slice(i, i + 3));
+  for (const g of groups) {
+    const body = g.map((c) => ({ jsonrpc: '2.0', id: c.id, method: c.method, params: c.params }));
+    await rpcFailover(async (url) => {
+      const res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!Array.isArray(j)) throw new Error('RPC batch: respuesta no es lista');
+      for (const r of j) out[r.id] = r.result;
+      return true;
+    });
+  }
   return out;
 }
 
