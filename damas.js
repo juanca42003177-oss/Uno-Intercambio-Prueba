@@ -316,6 +316,7 @@ function damasRestartPractice() {
 
 // ---------------- lobby ----------------
 async function damasRefreshLobby() {
+  try { damasUpdateLimitsLabel(); } catch (e) {}
   const el = document.getElementById('damasLobby');
   if (!el) return;
   el.innerHTML = '<div class="damas-muted">Cargando retos abiertos...</div>';
@@ -393,9 +394,28 @@ function damasHandleEmotes(emotes) {
   }
 }
 
+// Limites de apuesta: minimo 1 WLD, maximo el equivalente a $10 al precio vivo del WLD.
+const DAMAS_MAX_USD = 10;
+function damasStakeLimits() {
+  const px = (typeof prices !== 'undefined' && prices && prices.WLD) ? Number(prices.WLD) : 0;
+  const max = px > 0 ? Math.floor((DAMAS_MAX_USD / px) * 10) / 10 : 20; // sin precio: 20 WLD por defecto
+  return { min: 1, max: Math.max(1, max), px };
+}
+function damasUpdateLimitsLabel() {
+  const l = damasStakeLimits();
+  const el = document.getElementById('damasMinMax');
+  if (el) el.textContent = 'mín ' + l.min + ' WLD — máx ' + l.max + ' WLD (≈ $' + DAMAS_MAX_USD + ')';
+  const inp = document.getElementById('damasStakeInput');
+  if (inp) { inp.min = String(l.min); inp.max = String(l.max); }
+}
+
 async function damasCreateGame(stakeWldStr) {
   if (!currentAccount) return showOk('Conecta tu wallet', '⚠️');
-  const amountWei = toRawAmount(parseFloat(stakeWldStr), 18);
+  const lim = damasStakeLimits();
+  const val = parseFloat(stakeWldStr);
+  if (!isFinite(val) || val < lim.min) return showOk('La apuesta mínima es ' + lim.min + ' WLD', '⚠️');
+  if (val > lim.max) return showOk('La apuesta máxima es ' + lim.max + ' WLD (≈ $' + DAMAS_MAX_USD + ')', '⚠️');
+  const amountWei = toRawAmount(val, 18);
   try {
     await damasSendTx([
       { to: DAMAS_WLD, data: encodeApprove(DAMAS_ADDRESS, 0n), value: '0x0' },
