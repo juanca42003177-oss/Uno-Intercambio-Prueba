@@ -473,10 +473,13 @@ async function damasOpenActiveGame(id) {
     const { board, turn } = damasRebuild(log);
     let emotesSeen = 0;
     for (const em of ((sj && sj.emotes) || [])) if (em && typeof em.ts === 'number') emotesSeen = Math.max(emotesSeen, em.ts);
-    damasCurrentGame = { id, me: side, p1: g0.p1, p2: g0.p2, stake: g0.stake, status: g0.status, board, turn, log, selected: null, settling: false, emotesSeen };
+    damasCurrentGame = { id, me: side, p1: g0.p1, p2: g0.p2, stake: g0.stake, status: g0.status, board, turn, log, selected: null, settling: false, emotesSeen, draw: (sj && sj.drawProposal) || null };
+    const damasBox = document.getElementById('damasActionsBox');
+    if (damasBox) { damasBox.innerHTML = ''; delete damasBox.dataset.draw; }
     document.getElementById('damasLobbyView').style.display = 'none';
     document.getElementById('damasBoardView').style.display = 'block';
     damasRenderBoard();
+    if (damasCurrentGame.draw) damasRenderDrawBanner();
     if (damasPollTimer) clearInterval(damasPollTimer);
     damasPollTimer = setInterval(damasPollMoves, 4000);
     if (g0.status === 2) {
@@ -503,6 +506,7 @@ async function damasPollMoves() {
     const j = await r.json();
     const log = (j && j.log) || [];
     damasHandleEmotes(j && j.emotes);
+    damasHandleDrawProposal(j && j.drawProposal);
     if (log.length !== g.log.length) {
       const rb = damasRebuild(log);
       g.log = log; g.board = rb.board; g.turn = rb.turn; g.selected = null;
@@ -666,6 +670,14 @@ async function damasPollSettleStatus() {
     if (!g0) return;
     if (g0.status === 3) {
       const box = document.getElementById('damasActionsBox');
+      if (g.draw && g.draw.status === 'accepted' && box) {
+        box.innerHTML = `
+          <div class="damas-breakdown">
+            <div style="font-size:15px;font-weight:900;color:var(--green)">🤝 Tablas confirmadas. Partida terminada.</div>
+            <div class="row" style="margin-top:6px"><span>Apuesta devuelta a cada jugador</span><b>${damasFmtWld(g.stake)} WLD</b></div>
+          </div>`;
+        return;
+      }
       const potWei = (BigInt(g.stake) * 2n).toString();
       const payWei = (BigInt(potWei) * 99n / 100n).toString();
       if (box) box.innerHTML = `
@@ -679,6 +691,90 @@ async function damasPollSettleStatus() {
     if (g0.status === 4) { damasShowDispute(); return; }
     setTimeout(damasPollSettleStatus, 5000);
   } catch (e) { setTimeout(damasPollSettleStatus, 7000); }
+}
+
+
+// ---------------- tablas (empate: apuestas devueltas sin comision) ----------------
+function damasHandleDrawProposal(p) {
+  const g = damasCurrentGame;
+  if (!g || g.settling) return;
+  if (JSON.stringify(p || null) === JSON.stringify(g.draw)) return;
+  g.draw = p || null;
+  damasRenderDrawBanner();
+}
+
+function damasRenderDrawBanner() {
+  const g = damasCurrentGame;
+  if (!g) return;
+  const box = document.getElementById('damasActionsBox');
+  if (!box) return;
+  if (!g.draw) {
+    if (box.dataset.draw === '1') { box.innerHTML = ''; delete box.dataset.draw; }
+    return;
+  }
+  box.dataset.draw = '1';
+  const p = g.draw;
+  if (p.status === 'proposed' && p.by !== g.me) {
+    box.innerHTML = `
+      <div class="damas-breakdown">
+        <div style="font-size:15px;font-weight:900">🤝 Tu rival propone tablas</div>
+        <div class="small" style="margin:4px 0 8px">Si aceptás, ambos reciben su apuesta de vuelta (sin comisión).</div>
+        <button class="btnY" style="width:100%" onclick="damasRespondDraw(true)">🤝 Aceptar tablas</button>
+        <button class="btnY" style="background:var(--card2);color:#eaecef;width:100%;margin-top:8px" onclick="damasRespondDraw(false)">⚔️ Seguir jugando</button>
+      </div>`;
+  } else if (p.status === 'proposed' && p.by === g.me) {
+    box.innerHTML = `
+      <div class="damas-breakdown">
+        <div style="font-size:15px;font-weight:900">🤝 Tablas propuestas</div>
+        <div class="small" style="margin:4px 0">Esperando la respuesta del rival...</div>
+      </div>`;
+  } else if (p.status === 'accepted') {
+    box.innerHTML = `
+      <div class="damas-breakdown">
+        <div style="font-size:15px;font-weight:900">🤝 Tablas aceptadas</div>
+        <div class="small" style="margin:4px 0 8px">Confirmá en cadena para que ambos reciban su apuesta de vuelta.</div>
+        <button class="btnY" style="width:100%" onclick="damasConfirmDraw()">✅ Confirmar tablas</button>
+      </div>`;
+  }
+}
+
+async function damasProposeDraw() {
+  const g = damasCurrentGame;
+  if (!g) return;
+  try {
+    const r = await fetch(DAMAS_MOVES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'proposedraw', gameId: g.id, by: g.me }) });
+    const j = await r.json();
+    if (j.ok) { g.draw = j.drawProposal; damasRenderDrawBanner(); showOk('Propuesta enviada al rival', '🤝'); }
+    else showOk(j.error || 'No se pudo proponer', '⚠️');
+  } catch (e) { showOk('Error: ' + (e.message || e), '❌'); }
+}
+
+async function damasRespondDraw(accept) {
+  const g = damasCurrentGame;
+  if (!g) return;
+  try {
+    const r = await fetch(DAMAS_MOVES_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'responddraw', gameId: g.id, by: g.me, accept }) });
+    const j = await r.json();
+    if (!j.ok) return showOk(j.error || 'Error', '⚠️');
+    g.draw = j.drawProposal || null;
+    if (accept) {
+      showOk('Confirmando las tablas en World App...', '⏳');
+      await damasConfirmDraw();
+    } else {
+      damasRenderDrawBanner();
+      showOk('Seguís jugando. ¡Éxito!', '⚔️');
+    }
+  } catch (e) { showOk('Error: ' + (e.message || e), '❌'); }
+}
+
+async function damasConfirmDraw() {
+  const g = damasCurrentGame;
+  if (!g) return;
+  try {
+    await damasSendTx([{ to: DAMAS_ADDRESS, data: encConfirmResult(g.id, '0x' + '0'.repeat(40)), value: '0x0' }], 'Confirmando tablas en World App...');
+    showOk('Tablas confirmadas. Cuando el rival confirme, ambos reciben su apuesta.', '⏳');
+    damasPollSettleStatus();
+  } catch (e) { showOk('Error: ' + (e.message || e), '❌'); }
 }
 
 function damasShowDispute() {

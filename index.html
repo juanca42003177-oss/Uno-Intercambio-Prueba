@@ -365,9 +365,10 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
         <button onclick="damasSendEmote('👍')" title="Buena jugada">👍</button>
       </div>
       <div id="damasActionsBox"></div>
-      <div id="damasPvpButtons" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
-        <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasResign()">🏳️ Rendirse</button>
-        <button class="btnY" style="background:var(--card2);color:#eaecef" onclick="damasClaimTimeout()">⏱️ Cobrar por abandono</button>
+      <div id="damasPvpButtons" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
+        <button class="btnY" style="background:var(--card2);color:#eaecef;font-size:12px" onclick="damasProposeDraw()" title="Empate: ambos reciben su apuesta de vuelta">🤝 Tablas</button>
+        <button class="btnY" style="background:var(--card2);color:#eaecef;font-size:12px" onclick="damasResign()">🏳️ Rendirse</button>
+        <button class="btnY" style="background:var(--card2);color:#eaecef;font-size:12px" title="Cobrar si el rival lleva 72h sin jugar" onclick="damasClaimTimeout()">⏱️ Abandono</button>
       </div>
       <button id="damasExitBtn" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:10px" onclick="damasLeaveBoard()">← Volver al lobby</button>
     </div>
