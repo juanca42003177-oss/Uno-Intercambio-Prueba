@@ -165,10 +165,13 @@ contract DamasPot {
         Game storage g = games[id];
         g.status = Status.Finished;
         if (winner == address(0)) {
-            // empate: reembolso integro a ambos, sin comision
-            require(wld.transfer(g.p1, g.stake), "reembolso p1 fallo");
-            require(wld.transfer(g.p2, g.stake), "reembolso p2 fallo");
-            emit GameSettled(id, address(0), 0, 0);
+            // empate: la partida si se jugo, la comision se cobra igual (repartida mitad y mitad)
+            uint256 pot = g.stake * 2;
+            uint256 fee = (pot * feeBps) / 10000;
+            require(wld.transfer(g.p1, g.stake - fee + fee / 2), "reembolso p1 fallo");
+            require(wld.transfer(g.p2, g.stake - fee / 2), "reembolso p2 fallo");
+            if (fee > 0) require(wld.transfer(feeWallet, fee), "comision fallo");
+            emit GameSettled(id, address(0), pot - fee, fee);
         } else {
             uint256 pot = g.stake * 2;
             uint256 fee = (pot * feeBps) / 10000;

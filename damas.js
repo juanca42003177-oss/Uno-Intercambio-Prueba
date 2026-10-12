@@ -674,7 +674,7 @@ async function damasPollSettleStatus() {
         box.innerHTML = `
           <div class="damas-breakdown">
             <div style="font-size:15px;font-weight:900;color:var(--green)">🤝 Tablas confirmadas. Partida terminada.</div>
-            <div class="row" style="margin-top:6px"><span>Apuesta devuelta a cada jugador</span><b>${damasFmtWld(g.stake)} WLD</b></div>
+            <div class="row" style="margin-top:6px"><span>Recibe cada jugador (menos comisión)</span><b>${damasFmtWld((BigInt(g.stake) * 99n / 100n).toString())} WLD</b></div>
           </div>`;
         return;
       }
@@ -718,7 +718,7 @@ function damasRenderDrawBanner() {
     box.innerHTML = `
       <div class="damas-breakdown">
         <div style="font-size:15px;font-weight:900">🤝 Tu rival propone tablas</div>
-        <div class="small" style="margin:4px 0 8px">Si aceptás, ambos reciben su apuesta de vuelta (sin comisión).</div>
+        <div class="small" style="margin:4px 0 8px">Si aceptás, ambos reciben su apuesta menos 1% de comisión del pozo (repartida).</div>
         <button class="btnY" style="width:100%" onclick="damasRespondDraw(true)">🤝 Aceptar tablas</button>
         <button class="btnY" style="background:var(--card2);color:#eaecef;width:100%;margin-top:8px" onclick="damasRespondDraw(false)">⚔️ Seguir jugando</button>
       </div>`;
@@ -732,7 +732,7 @@ function damasRenderDrawBanner() {
     box.innerHTML = `
       <div class="damas-breakdown">
         <div style="font-size:15px;font-weight:900">🤝 Tablas aceptadas</div>
-        <div class="small" style="margin:4px 0 8px">Confirmá en cadena para que ambos reciban su apuesta de vuelta.</div>
+        <div class="small" style="margin:4px 0 8px">Confirmá en cadena para que ambos reciban su apuesta menos la comisión.</div>
         <button class="btnY" style="width:100%" onclick="damasConfirmDraw()">✅ Confirmar tablas</button>
       </div>`;
   }
