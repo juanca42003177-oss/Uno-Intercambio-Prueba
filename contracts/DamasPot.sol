@@ -146,7 +146,8 @@ contract DamasPot {
         require(g.status == Status.Active, "partida no activa");
         require(msg.sender == g.p1 || msg.sender == g.p2, "no eres jugador");
         require(block.timestamp >= g.lastTouch + TIMEOUT, "rival aun activo");
-        _finish(id, _other(g, msg.sender));
+        // El que reclama es el que sigue presente: cobra el pozo (menos comision).
+        _finish(id, msg.sender);
     }
 
     // Ultimo recurso si los jugadores votaron distinto (alguien hizo trampa).
