@@ -454,7 +454,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js?v=20261012"></script>
-<script src="damas.js?v=20261013b"></script>
+<script src="damas.js?v=20261013c"></script>
 <script>
 function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
@@ -661,8 +661,13 @@ function copyAddr() {
 }
 function go(page) {
   // proteccion anti-toque-accidental: no salir de Damas a media partida sin confirmar
-  if (page !== 'damas' && typeof damasInMatch === 'function' && damasInMatch()) {
-    if (!confirm(damasLeaveWarning())) return;
+  if (page !== 'damas' && !window.__damasLeaving && typeof damasInMatch === 'function' && damasInMatch()) {
+    damasAsk(damasLeaveWarning(), 'Sí, salir', 'Continuar jugando').then(function (ok) {
+      if (!ok) return;
+      window.__damasLeaving = true;
+      try { go(page); } finally { window.__damasLeaving = false; }
+    });
+    return;
   }
   ['home','swap','earn','send','recv','tokenDetail','pred','wallet','damas'].forEach(function(p) {
     var el = document.getElementById(p);

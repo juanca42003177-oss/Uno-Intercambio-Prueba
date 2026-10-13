@@ -161,6 +161,32 @@ function damasExitPractice() {
   document.getElementById('damasBoardView').style.display = 'none'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='';})();
 }
 
+// ---- modal de confirmacion propio (confirm() nativo no muestra botones en World App) ----
+function damasAsk(message, okText, cancelText) {
+  return new Promise(function (resolve) {
+    var old = document.getElementById('damasAskOverlay'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'damasAskOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:22px';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#1e2329;border:1px solid #f0b90b;border-radius:14px;padding:22px 18px;max-width:340px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.6)';
+    var p = document.createElement('div');
+    p.style.cssText = 'color:#eaecef;font-size:14.5px;line-height:1.55;text-align:center;white-space:pre-line;margin-bottom:18px';
+    p.textContent = message;
+    var keep = document.createElement('button');
+    keep.textContent = cancelText || 'Continuar jugando';
+    keep.style.cssText = 'width:100%;padding:14px;border:0;border-radius:10px;background:#f0b90b;color:#1e2329;font-weight:800;font-size:15px;margin-bottom:10px;cursor:pointer';
+    var leave = document.createElement('button');
+    leave.textContent = okText || 'Salir';
+    leave.style.cssText = 'width:100%;padding:12px;border:1px solid #474d57;border-radius:10px;background:transparent;color:#848e9c;font-weight:700;font-size:13px;cursor:pointer';
+    function done(v) { ov.remove(); resolve(v); }
+    keep.onclick = function () { done(false); };
+    leave.onclick = function () { done(true); };
+    box.appendChild(p); box.appendChild(keep); box.appendChild(leave); ov.appendChild(box);
+    document.body.appendChild(ov);
+  });
+}
+
 // ¿hay una partida en curso en pantalla? (practica sin terminar o partida real activa)
 function damasInMatch() {
   var bv = document.getElementById('damasBoardView');
@@ -173,8 +199,8 @@ function damasLeaveWarning() {
     ? '⚠️ Tienes una práctica en curso.\n¿Seguro que quieres salir? Perderás esta partida.'
     : '⚠️ Tienes una partida con apuesta en curso.\nSi sales, tu rival sigue esperando y el tiempo corre.\n¿Seguro que quieres salir?';
 }
-function damasLeaveBoard() {
-  if (damasInMatch() && !confirm(damasLeaveWarning())) return;
+async function damasLeaveBoard() {
+  if (damasInMatch() && !(await damasAsk(damasLeaveWarning(), 'Sí, salir', 'Continuar jugando'))) return;
   if (damasPractice) damasExitPractice();
   else damasExitGame();
 }
@@ -797,7 +823,7 @@ function damasShowDispute() {
 
 async function damasResign() {
   const g = damasCurrentGame;
-  if (!g || !confirm('¿Seguro que te rendís? El rival se queda con todo el pozo.')) return;
+  if (!g || !(await damasAsk('🏳️ ¿Seguro que te rendís?\nEl rival se queda con todo el pozo.', 'Sí, rendirme', 'Continuar jugando'))) return;
   try {
     await damasSendTx([{ to: DAMAS_ADDRESS, data: encResign(g.id), value: '0x0' }], 'Confirmando en World App...');
     showOk('Te rendiste. El pozo fue pagado al rival.', '✅');
