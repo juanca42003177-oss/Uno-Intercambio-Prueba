@@ -162,8 +162,11 @@ function damasExitPractice() {
 }
 
 function damasLeaveBoard() {
-  if (damasPractice) damasExitPractice();
-  else damasExitGame();
+  if (damasPractice) {
+    // confirmacion anti-toque-accidental mientras la partida sigue en curso
+    if (!damasPractice.over && !confirm('¿Terminar la práctica? Perderás esta partida.')) return;
+    damasExitPractice();
+  } else damasExitGame();
 }
 
 // ---- IA: minimax con poda alfa-beta sobre el mismo motor de reglas ----
