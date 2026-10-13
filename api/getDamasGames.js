@@ -3,7 +3,7 @@
 // (igual patron que getVaultPredictInfo). Cache server-side de 10s.
 const { rpcBatch, hexToBigInt, padNum } = require('./_rpc');
 
-const DAMAS_ADDRESS = process.env.DAMAS_ADDRESS || '0x98f38BFa1AFBB20e5316fbf0e58B5C536fB7dAb5'; // DamasPot v3 (fix claimTimeout), desplegado 2026-10-12
+const DAMAS_ADDRESS = process.env.DAMAS_ADDRESS || '0x9E8D281d80441763dbC1AF701FCc510B8A36D155'; // DamasPot v4 (comision tambien en tablas)
 const MAX_SCAN = 200; // ultimas N partidas a escanear (cubre meses de historial)
 
 const SEL = {
