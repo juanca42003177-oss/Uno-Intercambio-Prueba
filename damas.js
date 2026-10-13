@@ -161,12 +161,22 @@ function damasExitPractice() {
   document.getElementById('damasBoardView').style.display = 'none'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='';})();
 }
 
+// ¿hay una partida en curso en pantalla? (practica sin terminar o partida real activa)
+function damasInMatch() {
+  var bv = document.getElementById('damasBoardView');
+  if (!bv || bv.style.display === 'none') return false;
+  if (damasPractice) return !damasPractice.over;
+  return !!(damasCurrentGame && (damasCurrentGame.status === 2 || damasCurrentGame.status === 4));
+}
+function damasLeaveWarning() {
+  return damasPractice
+    ? '⚠️ Tienes una práctica en curso.\n¿Seguro que quieres salir? Perderás esta partida.'
+    : '⚠️ Tienes una partida con apuesta en curso.\nSi sales, tu rival sigue esperando y el tiempo corre.\n¿Seguro que quieres salir?';
+}
 function damasLeaveBoard() {
-  if (damasPractice) {
-    // confirmacion anti-toque-accidental mientras la partida sigue en curso
-    if (!damasPractice.over && !confirm('¿Terminar la práctica? Perderás esta partida.')) return;
-    damasExitPractice();
-  } else damasExitGame();
+  if (damasInMatch() && !confirm(damasLeaveWarning())) return;
+  if (damasPractice) damasExitPractice();
+  else damasExitGame();
 }
 
 // ---- IA: minimax con poda alfa-beta sobre el mismo motor de reglas ----

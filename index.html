@@ -371,11 +371,11 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
         <button class="btnY" style="background:var(--card2);color:#eaecef;font-size:12px" onclick="damasResign()">🏳️ Rendirse</button>
         <button class="btnY" style="background:var(--card2);color:#eaecef;font-size:12px" title="Cobrar si el rival lleva 72h sin jugar" onclick="damasClaimTimeout()">⏱️ Abandono</button>
       </div>
-      <div style="height:46px"></div>
+      <div style="height:90px"></div>
       <button id="damasExitBtn" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:0;opacity:.85" onclick="damasLeaveBoard()">← Volver al lobby</button>
     </div>
 
-    <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:22px;margin-bottom:24px;opacity:.85">← Volver</button>
+    <button onclick="go('home')" class="btnY" style="background:var(--card2);color:#eaecef;margin-top:90px;margin-bottom:24px;opacity:.85">← Volver</button>
   </div>
 </div>
 
@@ -454,7 +454,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js?v=20261012"></script>
-<script src="damas.js?v=20261013"></script>
+<script src="damas.js?v=20261013b"></script>
 <script>
 function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
@@ -660,6 +660,10 @@ function copyAddr() {
   navigator.clipboard.writeText(currentAccount || '').then(function(){ showOk('Dirección copiada', '📋'); });
 }
 function go(page) {
+  // proteccion anti-toque-accidental: no salir de Damas a media partida sin confirmar
+  if (page !== 'damas' && typeof damasInMatch === 'function' && damasInMatch()) {
+    if (!confirm(damasLeaveWarning())) return;
+  }
   ['home','swap','earn','send','recv','tokenDetail','pred','wallet','damas'].forEach(function(p) {
     var el = document.getElementById(p);
     if (el) el.style.display = (p === page) ? 'block' : 'none';
