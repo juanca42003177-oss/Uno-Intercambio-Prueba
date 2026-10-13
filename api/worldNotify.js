@@ -18,7 +18,7 @@
 // retos esta limitado a 1 por minuto por instancia.
 
 const BRANCH = 'damas-data'; // rama de datos del repo
-const REPO = process.env.GITHUB_ALERTS_REPO || 'juanca42003177-oss/Uno-Intercambio-Prueba';
+const REPO = process.env.GITHUB_DATA_REPO || 'juanca42003177-oss/dragon-labs-data';
 const SUBS_PATH = 'notify/subs-dragon.json';
 const VOL_PATH = 'notify/volumes-dragon.json';
 const APP_LABEL = 'Dragon Trade';
