@@ -143,7 +143,7 @@ let damasPractice = null; // { board, turn, selected, depth, over }
 function damasStartPractice(depth) {
   damasPractice = { board: damasInitialBoard(), turn: 'p1', selected: null, depth: Number(depth) || 3, over: false };
   document.getElementById('damasLobbyView').style.display = 'none';
-  document.getElementById('damasBoardView').style.display = 'block';
+  document.getElementById('damasBoardView').style.display = 'block'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='none';})();
   document.getElementById('damasEmoteBar').style.display = 'none';       // emojis solo en P2P
   document.getElementById('damasPvpButtons').style.display = 'none';      // sin rendirse/cobrar
   document.getElementById('damasExitBtn').textContent = '← Terminar práctica';
@@ -158,7 +158,7 @@ function damasExitPractice() {
   document.getElementById('damasPvpButtons').style.display = 'grid';
   document.getElementById('damasExitBtn').textContent = '← Volver al lobby';
   document.getElementById('damasLobbyView').style.display = 'block';
-  document.getElementById('damasBoardView').style.display = 'none';
+  document.getElementById('damasBoardView').style.display = 'none'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='';})();
 }
 
 function damasLeaveBoard() {
@@ -480,7 +480,7 @@ async function damasOpenActiveGame(id) {
     const damasBox = document.getElementById('damasActionsBox');
     if (damasBox) { damasBox.innerHTML = ''; delete damasBox.dataset.draw; }
     document.getElementById('damasLobbyView').style.display = 'none';
-    document.getElementById('damasBoardView').style.display = 'block';
+    document.getElementById('damasBoardView').style.display = 'block'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='none';})();
     damasRenderBoard();
     if (damasCurrentGame.draw) damasRenderDrawBanner();
     if (damasPollTimer) clearInterval(damasPollTimer);
@@ -495,7 +495,7 @@ async function damasOpenActiveGame(id) {
 function damasExitGame() {
   if (damasPollTimer) { clearInterval(damasPollTimer); damasPollTimer = null; }
   damasCurrentGame = null;
-  document.getElementById('damasBoardView').style.display = 'none';
+  document.getElementById('damasBoardView').style.display = 'none'; (function(){var x=document.getElementById('damasHead'); if(x) x.style.display='';})();
   document.getElementById('damasLobbyView').style.display = 'block';
   damasRefreshLobby();
 }

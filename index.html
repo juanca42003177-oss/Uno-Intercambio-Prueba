@@ -298,14 +298,15 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 
 <div id="damas" style="display:none">
   <div class="main">
+    <div id="damasHead">
     <h3 style="text-align:center">♟️ Damas — Apuesta en WLD</h3>
     <div class="small" style="text-align:center;margin-bottom:12px">Usuario vs usuario, pozo común: el que gana se lleva todo</div>
+    </div>
+    <div id="damasLobbyView">
     <div class="box" style="font-size:12.5px;line-height:1.6">
       <b style="color:var(--yellow)">Cómo funciona</b><br>
       Elegís tu apuesta en WLD (desde 1 hasta lo que valga $10). El rival pone lo mismo y el pozo queda bloqueado en el contrato. Al terminar la partida ambos confirman quién ganó; si coinciden, <b>se paga solo</b> (1% de comisión). Dragon Trade no se involucra en partidas normales.
     </div>
-
-    <div id="damasLobbyView">
       <div class="box">
         <b style="color:var(--yellow)">Crear un reto nuevo</b>
         <div class="small" style="margin:10px 0 4px">Apuesta en WLD (<span id="damasMinMax">mín 1 — máx ~$10</span>)</div>
@@ -328,7 +329,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       <div id="damasLobby"></div>
     </div>
 
-    <div id="damasBoardView" style="display:none">
+    <div id="damasBoardView" style="display:none;padding-bottom:90px">
       <div class="damas-head">
         <div class="damas-player" id="damasP1Card">
           <div class="damas-avatar" id="damasP1Avatar">?</div>
@@ -453,7 +454,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js?v=20261012"></script>
-<script src="damas.js?v=20261012"></script>
+<script src="damas.js?v=20261012b"></script>
 <script>
 function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
