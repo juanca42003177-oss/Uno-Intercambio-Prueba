@@ -7,7 +7,7 @@
 
 const DAMAS_ADDRESS = '0x9E8D281d80441763dbC1AF701FCc510B8A36D155'; // DamasPot v4 (claimTimeout fix + comision 1% tambien en tablas), desplegado 2026-10-12
 const DAMAS_WLD = '0x2cFc85d8E48F8EAB294be644d9E25C3030863003';
-const DAMAS_MOVES_URL = 'https://intercambiox.vercel.app/api/damasMoves'; // relay central (CORS abierto)
+const DAMAS_MOVES_URL = 'https://dragontrade.vercel.app/api/damasMoves'; // relay central (CORS abierto)
 
 // ---- codificacion de las llamadas del contrato (mismo estilo que el resto de index.html) ----
 function encodeDamasUint(n) { return BigInt(n).toString(16).padStart(64, '0'); }
