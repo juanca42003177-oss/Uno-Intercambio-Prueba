@@ -1408,6 +1408,7 @@ window.addEventListener('load', function() {
 // ---- Bóvedas reales de Dragon Trade (contratos en cadena) ----
 // addr vacío = bóveda aún no desplegada: no se muestra en la app.
 var VAULTS = [
+  {id:'wld',  name:'WLD / ETH',  symA:'WLD',  symB:'ETH', addr:'0xef4D662397a88c6ba59485aEC013540944b788E3', note:'Depositas WLD y el contrato mete liquidez real al pool WLD/ETH, el de más volumen de World Chain.', feeNote:'1% flat al retirar'},
   {id:'axo',  name:'AXO / WLD',  symA:'AXO',  symB:'WLD', addr:'0xdfFC1AC6b093ba7cA9D3A597965284Ce8F07a927', note:'Depositas AXO y el contrato mete liquidez real al pool AXO/WLD.', feeNote:'1% flat al retirar'},
   {id:'dna',  name:'DNA / ETH',  symA:'DNA',  symB:'ETH', addr:'0x5C974862F850Ac7AfCBd47cD6364C7279E3a7557', note:'Depositas DNA y el contrato mete liquidez real al pool DNA/ETH.', feeNote:'1% flat al retirar'},
   {id:'chad', name:'CHAD / ETH', symA:'CHAD', symB:'ETH', addr:'0x10F7F207E047614800c31cEd877A05978dD51e50', note:'Depositas CHAD y el contrato mete liquidez real al pool CHAD/ETH.', feeNote:'1% flat al retirar'},
@@ -1521,7 +1522,7 @@ function updateVaultCardData() {
         + (usd ? (' (≈$' + (minTok * usd).toFixed(2) + ')') : '');
     }
     var lockEl = document.getElementById('vLockDays_' + v.id);
-    if (lockEl) lockEl.innerText = v.lockPeriodDays;
+    if (lockEl) lockEl.innerText = v.lockPeriodDays ? (v.lockPeriodDays + ' días') : 'Sin bloqueo';
     var pn = document.getElementById('vaultPaused_' + v.id);
     if (pn) pn.style.display = v.depositsPaused ? 'block' : 'none';
   });

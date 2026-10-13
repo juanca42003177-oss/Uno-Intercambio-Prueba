@@ -5,6 +5,7 @@
 const { rpcBatch, hexToBigInt, padAddr, padNum } = require('./_rpc');
 
 const VAULTS = [
+  { id: 'wld', symA: 'WLD', address: '0xef4D662397a88c6ba59485aEC013540944b788E3' }, // flex 1% sin bloqueo (mismo contrato que SwapX, pool con volumen real)
   { id: 'axo', symA: 'AXO', address: '0xdfFC1AC6b093ba7cA9D3A597965284Ce8F07a927' },
   { id: 'dna', symA: 'DNA', address: '0x5C974862F850Ac7AfCBd47cD6364C7279E3a7557' },
   { id: 'chad', symA: 'CHAD', address: '0x10F7F207E047614800c31cEd877A05978dD51e50' },
@@ -52,13 +53,22 @@ function decodeMarketSummary(hex) {
 
 function decodeDepositInfo(hex) {
   const data = hex && hex.startsWith('0x') ? hex.slice(2) : (hex || '');
-  if (data.length < 4 * 64) return null;
+  if (data.length < 3 * 64) return null;
   const word = (i) => data.slice(i * 64, i * 64 + 64);
+  if (data.length >= 4 * 64) {
+    return {
+      principalA: hexToBigInt('0x' + word(0)).toString(),
+      liquidity: hexToBigInt('0x' + word(1)).toString(),
+      unlockAt: Number(hexToBigInt('0x' + word(2))),
+      unlocked: hexToBigInt('0x' + word(3)) === 1n,
+    };
+  }
+  // variante flex UnoVaultLite: (principalA, liquidity, active) — sin bloqueo
   return {
     principalA: hexToBigInt('0x' + word(0)).toString(),
     liquidity: hexToBigInt('0x' + word(1)).toString(),
-    unlockAt: Number(hexToBigInt('0x' + word(2))),
-    unlocked: hexToBigInt('0x' + word(3)) === 1n,
+    unlockAt: 0,
+    unlocked: true,
   };
 }
 
