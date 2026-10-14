@@ -454,7 +454,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js?v=20261012"></script>
-<script src="damas.js?v=20261013c"></script>
+<script src="damas.js?v=20261014"></script>
 <script>
 function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
@@ -1481,6 +1481,7 @@ async function loadVaultPredict() {
     vaultPredictData = data;
     renderVaultCards();
     renderPredictSection();
+    damasSelfHealPredictBot(data);
   } catch (e) {
     // Ante un fallo temporal conservamos el estado mostrado, nunca vaciamos
     // posiciones ni saldos por una respuesta de red fallida.
@@ -1488,6 +1489,22 @@ async function loadVaultPredict() {
   } finally {
     vaultPredictRefreshPending = false;
   }
+}
+
+// ---- auto-reparacion del bot de predicciones ----
+// Si el cron externo falla y hay una ronda vencida sin resolver, cualquier
+// usuario que abra Trading dispara un tick del bot. Enfriamiento 10 min.
+function damasSelfHealPredictBot(data) {
+  try {
+    var now = Math.floor(Date.now() / 1000);
+    var mk = (data && data.predict && data.predict.markets) || [];
+    var vencida = mk.some(function (m) { return !m.resolved && m.resolveAt < now - 600; });
+    if (!vencida) return;
+    var last = Number(localStorage.getItem('dtBotHeal') || 0);
+    if (now - last < 600) return;
+    localStorage.setItem('dtBotHeal', String(now));
+    fetch('https://dragontrade.vercel.app/api/predictBotTick', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(function () {});
+  } catch (e) { /* nunca romper la vista */ }
 }
 
 function renderVaultCards() {
