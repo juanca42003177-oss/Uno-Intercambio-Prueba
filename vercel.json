@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "api/predictBotTick.js": { "maxDuration": 60 },
-    "api/damasMoves.js": { "maxDuration": 30 },
-    "api/priceAlerts.js": { "maxDuration": 60 }
-  }
-}
