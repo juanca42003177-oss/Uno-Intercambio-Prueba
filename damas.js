@@ -354,6 +354,34 @@ function damasRestartPractice() {
 }
 
 // ---------------- lobby ----------------
+var damasLobbyTimer = null;
+var damasLastLobbyHtml = null;
+
+function damasLobbyVisible() {
+  try {
+    const lv = document.getElementById('damasLobbyView');
+    const dv = document.getElementById('damasBoardView');
+    return !!(lv && dv && lv.style.display !== 'none' && dv.style.display === 'none');
+  } catch (e) { return false; }
+}
+
+// refresco automatico del lobby cada 15 s mientras se ve (y al volver de segundo plano)
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden && damasLobbyVisible()) damasRefreshLobby();
+});
+if (damasLobbyTimer === null) damasLobbyTimer = setInterval(function () {
+  if (damasLobbyVisible()) damasRefreshLobby();
+}, 15000);
+
+// esperar a que el cambio se refleje en la lista, reintentando cada 2.5 s
+async function damasWaitLobby(check, attempts) {
+  for (let i = 0; i < (attempts || 4); i++) {
+    await new Promise((r) => setTimeout(r, 2500));
+    try { const open = await damasRefreshLobby(); if (check(open)) return true; } catch (e) {}
+  }
+  return false;
+}
+
 async function damasRefreshLobby() {
   try { damasUpdateLimitsLabel(); } catch (e) {}
   const el = document.getElementById('damasLobby');
@@ -388,9 +416,11 @@ async function damasRefreshLobby() {
           : `<button class="btnY" onclick="damasJoinGame(${g.id}, '${g.stake}')">⚔️ Aceptar reto (${wldAmt} WLD)</button>`}
       </div>`;
     }
-    el.innerHTML = html;
+    if (html !== damasLastLobbyHtml) { el.innerHTML = html; damasLastLobbyHtml = html; }
+    return open;
   } catch (e) {
     el.innerHTML = '<div class="damas-muted err">Error cargando el lobby: ' + e.message + '</div>';
+    return [];
   }
 }
 function damasFmtWld(weiStr) {
@@ -462,7 +492,9 @@ async function damasCreateGame(stakeWldStr) {
       { to: DAMAS_ADDRESS, data: encCreateGame(amountWei), value: '0x0' },
     ], 'Creando reto en World App...');
     showOk('✅ Reto creado. Esperá a que alguien lo acepte.', '✅');
-    setTimeout(damasRefreshLobby, 2500);
+    damasWaitLobby(function (open) {
+      return (open || []).some(function (g) { return currentAccount && g.p1 && g.p1.toLowerCase() === currentAccount.toLowerCase(); });
+    }, 5);
     // avisar por la campanita de World App a los suscritos (menos al creador)
     try {
       fetch('/api/worldNotify', {
@@ -490,7 +522,9 @@ async function damasCancelGame(id) {
   try {
     await damasSendTx([{ to: DAMAS_ADDRESS, data: encCancelGame(id), value: '0x0' }], 'Cancelando reto...');
     showOk('✅ Reto cancelado, WLD devuelto.', '✅');
-    setTimeout(damasRefreshLobby, 2500);
+    damasWaitLobby(function (open) {
+      return !(open || []).some(function (g) { return String(g.id) === String(id); });
+    }, 5);
   } catch (e) { showOk('Error: ' + (e.message || e), '❌'); }
 }
 
