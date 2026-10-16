@@ -93,6 +93,14 @@ label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin:10p
   <div id="marketsAdminList" style="margin-top:10px"></div>
 </div>
 
+<div class="box" style="margin-top:14px">
+  <b>♟️ Damas — Arbitrar disputas</b>
+  <div class="small" style="margin:6px 0 10px">Cuando los dos jugadores confirman ganadores distintos el pozo queda congelado. Solo tu wallet (dueña del contrato) puede decidir aquí: pagar al ganador real o declarar empate (mitad y mitad, cobrando el 1%).</div>
+  <button onclick="loadDamasDisputas()">🔄 Buscar partidas en disputa</button>
+  <div class="status" id="damasStatus" style="margin-top:10px"></div>
+  <div id="damasDisputasList"></div>
+</div>
+
 <script>
 // ---- Bóvedas de Dragon Trade ----
 // addr vacío = pendiente de despliegue (aparece en la lista pero no se puede administrar)
@@ -430,6 +438,51 @@ async function resolveMarket(id, upWon){
     predictStatus('<span class="ok">✅ Mercado #' + id + ' resuelto: ganó ' + (upWon?'ALZA':'BAJA') + '.</span>');
     await refreshMarkets();
   }catch(e){ predictStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+}
+
+
+// ---------------- Damas: arbitrar disputas ----------------
+const DAMAS_ARB_ADDRESS = '0x9E8D281d80441763dbC1AF701FCc510B8A36D155';
+let damasArbContract = null;
+function damasArbStatus(html){ document.getElementById('damasStatus').innerHTML = html; }
+
+async function loadDamasDisputas(){
+  try{
+    if(!signer){ damasArbStatus('<span class="err">Conecta tu wallet arriba primero.</span>'); return; }
+    damasArbStatus('Buscando disputas...');
+    var r = await fetch('https://dragontrade.vercel.app/api/getDamasGames');
+    var j = await r.json();
+    var disp = (j.games||[]).filter(function(g){ return g.status === 4; });
+    var box = document.getElementById('damasDisputasList');
+    if(disp.length === 0){ box.innerHTML=''; damasArbStatus('<span class="ok">✅ No hay partidas en disputa ahora.</span>'); return; }
+    var html = '';
+    disp.forEach(function(g){
+      var w1 = ethers.utils.formatUnits(String(g.stake||'0'), 18);
+      html += '<div style="border:1px solid #444;border-radius:8px;padding:10px;margin-top:8px">'
+        + '<b>Partida #'+g.id+'</b> — apuesta '+w1+' WLD cada uno'
+        + '<div class="small">P1: '+g.p1+'<br>P2: '+g.p2+'</div>'
+        + '<button onclick="arbitrar('+g.id+',\''+g.p1+'\')">🏆 Ganó P1</button> '
+        + '<button onclick="arbitrar('+g.id+',\''+g.p2+'\')">🏆 Ganó P2</button> '
+        + '<button class="sec" onclick="arbitrar('+g.id+',\'0x0000000000000000000000000000000000000000\')">🤝 Empate (mitad y mitad)</button>'
+        + '</div>';
+    });
+    box.innerHTML = html;
+    damasArbStatus('<span class="ok">Encontré '+disp.length+' disputa(s). Decide con el historial de jugadas.</span>');
+  }catch(e){ damasArbStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
+}
+
+async function arbitrar(id, winner){
+  try{
+    damasArbStatus('Acepta la transacción en tu wallet...');
+    if(!damasArbContract){
+      damasArbContract = new ethers.Contract(DAMAS_ARB_ADDRESS, ['function arbitrate(uint256 id, address winner) external'], signer);
+    }
+    var tx = await damasArbContract.arbitrate(id, winner);
+    damasArbStatus('Esperando confirmación de la red...');
+    await tx.wait();
+    damasArbStatus('<span class="ok">✅ Partida #'+id+' arbitrada y pagada.</span>');
+    await loadDamasDisputas();
+  }catch(e){ damasArbStatus('<span class="err">Error: '+esc(e.message||String(e))+'</span>'); }
 }
 
 // carga precios al abrir para tenerlos listos
