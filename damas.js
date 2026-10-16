@@ -389,8 +389,19 @@ async function damasRefreshLobby() {
   el.innerHTML = '<div class="damas-muted">Cargando retos abiertos...</div>';
   try {
     const url = await apiEndpoint('getDamasGames');
-    const r = await fetch(url);
-    const j = await r.json();
+    let j = null, lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(function () { ctrl.abort(); }, 12000);
+        const r = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        j = await r.json();
+        break;
+      } catch (e2) { lastErr = e2; await new Promise((r2) => setTimeout(r2, 1500)); }
+    }
+    if (!j) throw (lastErr || new Error('sin respuesta'));
     const games = (j && j.games) || [];
     const myAddr = currentAccount ? currentAccount.toLowerCase() : '';
     const open = games.filter((g) => g.status === 1);
@@ -419,7 +430,7 @@ async function damasRefreshLobby() {
     if (html !== damasLastLobbyHtml) { el.innerHTML = html; damasLastLobbyHtml = html; }
     return open;
   } catch (e) {
-    el.innerHTML = '<div class="damas-muted err">Error cargando el lobby: ' + e.message + '</div>';
+    if (!damasLastLobbyHtml) el.innerHTML = '<div class="damas-muted err">No se pudo cargar el lobby.<br><button class="btnY" style="margin-top:8px" onclick="damasRefreshLobby()">🔄 Reintentar</button></div>';
     return [];
   }
 }
