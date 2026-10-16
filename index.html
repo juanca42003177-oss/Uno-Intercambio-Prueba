@@ -454,7 +454,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
 </div>
 
 <script src="no44.js?v=20261012"></script>
-<script src="damas.js?v=20261014b"></script>
+<script src="damas.js?v=20261016"></script>
 <script>
 function showPrizes(){ document.getElementById('prizeModal').style.display = 'flex'; if (typeof updatePrizeProgress === 'function') updatePrizeProgress(); }
 function showWelcome(){ document.getElementById('welcome').style.display='flex'; }
@@ -477,7 +477,10 @@ var VERCEL_API = null; // null = sin detectar aún
 async function apiEndpoint(fn) {
   if (VERCEL_API === null) {
     try {
-      var r = await fetch('/api/health');
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 5000);
+      var r = await fetch('/api/health', { signal: ctrl.signal });
+      clearTimeout(t);
       var j = await r.json();
       VERCEL_API = !!(j && j.ok);
     } catch (e) { VERCEL_API = false; }
