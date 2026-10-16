@@ -453,6 +453,27 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
   </div>
 </div>
 
+<script>
+// Anti-trancazo global: ninguna consulta a nuestras APIs puede quedarse colgada.
+// Si tarda mas de 20s se cancela sola, el error llega al flujo y los candados
+// (loadingBalances, refrescos pendientes, lobby...) siempre se liberan.
+(function () {
+  var orig = window.fetch ? window.fetch.bind(window) : null;
+  if (!orig) return;
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (url.indexOf('/api/') === -1 && url.indexOf('vercel.app') === -1) return orig(input, init);
+    init = init || {};
+    if (init.signal) return orig(input, init);
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); }, 20000);
+    var p = orig(input, Object.assign({}, init, { signal: ctrl.signal }));
+    var done = function () { clearTimeout(t); };
+    p.then(done, done);
+    return p;
+  };
+})();
+</script>
 <script src="no44.js?v=20261012"></script>
 <script src="damas.js?v=20261016"></script>
 <script>
@@ -747,7 +768,16 @@ async function resolveUsername(address) {
 
 async function connectWallet() {
   try {
-    if (!window.MiniKit) return showOk('Abre dentro de World App', '⚠️');
+    // MiniKit se carga desde un CDN y en el primer arranque puede tardar varios
+    // segundos en existir. Antes el mensaje "Abre dentro de World App" salia
+    // antes de tiempo y uno tenia que salir y volver a entrar. Ahora esperamos.
+    if (!window.MiniKit) {
+      showOk('Conectando con World App...', '⏳');
+      for (var i = 0; i < 60 && !window.MiniKit; i++) {
+        await new Promise(function (r) { setTimeout(r, 500); });
+      }
+    }
+    if (!window.MiniKit) return showOk('World App sigue cargando. Espera unos segundos y toca Conectar de nuevo.', '⏳');
     MiniKit.install();
     var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
     var result = await MiniKit.walletAuth({ nonce: nonce, statement: 'Conectar Dragon Trade' });
