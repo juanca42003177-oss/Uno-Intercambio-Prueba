@@ -175,6 +175,13 @@ module.exports = wrap(async (req, res) => {
   }
 
   // sumar un swap al volumen acumulado; avisar si se desbloquea un nivel nuevo
+  if (action === 'prizetest') {
+    try {
+      const { prizeWalletAddress } = require('./_prizePay');
+      const addr = await prizeWalletAddress();
+      return res.json({ ok: true, wallet_premios: addr });
+    } catch (e) { return res.json({ ok: false, error: String(e && e.message ? e.message : e) }); }
+  }
   if (action === 'tgtest') {
     await tgSend('🔔 Prueba de Telegram desde ' + APP_LABEL + ' — si ves esto, el aviso de premios funciona.');
     return res.json({ ok: true, token_presente: !!process.env.TELEGRAM_BOT_TOKEN });
