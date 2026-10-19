@@ -783,6 +783,26 @@ function go(page) {
   if (page === 'damas') { damasRefreshLobby(); }
 }
 
+function fmtMicroNum(p) {
+  p = Number(p);
+  if (!isFinite(p) || p <= 0) return null;
+  if (p >= 0.01) return null;
+  var s = p.toFixed(14).replace(/0+$/, '');
+  var m = s.match(/^0\.(0*)([1-9]\d*)$/);
+  if (!m) return null;
+  var zeros = m[1].length;
+  var subs = '\u2080\u2081\u2082\u2083\u2084\u2085\u2086\u2087\u2088\u2089';
+  var z = '';
+  do { z = subs[zeros % 10] + z; zeros = Math.floor(zeros / 10); } while (zeros > 0);
+  return '0.0' + z + m[2].substring(0, 4);
+}
+function fmtMicroHTML(p) {
+  if (!(p > 0) || p >= 0.01) return null;
+  var s = p.toFixed(14).replace(/0+$/, '');
+  var m = s.match(/^0\.(0*)([1-9]\d*)$/);
+  if (!m) return null;
+  return '0.0<sub style="font-size:.45em">' + m[1].length + '</sub>' + m[2].substring(0, 4);
+}
 // ===== GRAFICO DE PRECIO EN EL DETALLE DEL TOKEN (estilo Dragon Trade) =====
 var DCH_RANGE = '24H';
 var DCH_DATA = {}; // sym+range -> {pts, ts}
@@ -897,7 +917,7 @@ function dchFmt(p) {
   if (!isFinite(p) || p <= 0) return '—';
   if (p >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (p >= 1) return p.toFixed(4);
-  return p.toFixed(8);
+  return fmtMicroNum(p) || p.toFixed(8);
 }
 function dchRender() {
   if (!DCH_SYM) return;
@@ -932,10 +952,11 @@ function openToken(sym) {
   dIcon.innerHTML = tokenIconHTML(t, sym);
   document.getElementById('dName').innerText = sym;
   document.getElementById('dBalText').innerText = formatCrypto(bal) + ' ' + sym;
-  document.getElementById('dPrice').innerText = '$' + price.toFixed(price < 0.01 ? 6 : 2);
+  document.getElementById('dPrice').innerHTML = '$' + (fmtMicroHTML(price) || price.toFixed(price < 0.01 ? 6 : 2));
   document.getElementById('dChange').innerText = (ch >= 0 ? '▲ +' : '▼ ') + Math.abs(ch).toFixed(2) + '%';
   document.getElementById('dBal').innerText = formatCrypto(bal) + ' ' + sym;
-  document.getElementById('dUsd').innerText = '$' + (bal * price).toFixed(2);
+  var dUsdVal = bal * price;
+  document.getElementById('dUsd').innerHTML = '$' + (dUsdVal >= 0.01 ? dUsdVal.toFixed(2) : (fmtMicroHTML(dUsdVal) || '0.00'));
   go('tokenDetail');
 }
 
