@@ -833,8 +833,8 @@ function dchPoints(sym, r, cb) {
     var srvCache = DCH_DATA['srv|' + sym];
     var fetchSrv = srvCache && Date.now() - srvCache.ts < 240000
       ? Promise.resolve({ hist: srvCache.pts })
-      : apiEndpoint('getSparkHistory').then(function(u) {
-          return fetch(u + '?sym=' + encodeURIComponent(sym) + '&x=' + Date.now()).then(function(res) { return res.json(); });
+      : apiEndpoint('getMarketPrices').then(function(u) {
+          return fetch(u + '?spark=' + encodeURIComponent(sym) + '&x=' + Date.now()).then(function(res) { return res.json(); });
         });
     fetchSrv.then(function(j) {
       var srv = (j && j.hist ? j.hist : []).map(function(x) { return [x[0], x[1]]; });
