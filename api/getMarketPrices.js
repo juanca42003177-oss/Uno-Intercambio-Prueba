@@ -55,6 +55,10 @@ function krakenNormalize(pair) {
 }
 
 const wrap = require('./_cors');
+const CG_SPARK_IDS = ['worldcoin-wld','usd-coin','weth','wrapped-bitcoin','solana','ripple','dogecoin','sushi'];
+const SPARK_SYM_BY_ID = { 'worldcoin-wld':['WLD'], 'usd-coin':['USDC'], 'weth':['ETH','WETH'], 'wrapped-bitcoin':['WBTC'], 'solana':['SOL','uSOL'], 'ripple':['uXRP','XRP'], 'dogecoin':['uDOGE','DOGE'], 'sushi':['SUSHI'] };
+let lastGoodSpark = {};
+
 module.exports = wrap(async (req, res) => {
   try {
     if (cache && Date.now() - cache.ts < 330000) {
@@ -74,6 +78,7 @@ module.exports = wrap(async (req, res) => {
       fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=worldcoin-wld,usd-coin,weth&vs_currencies=usd&include_24hr_change=true'),
       fetchJson('https://api.kraken.com/0/public/Ticker?pair=' + krakenPairs.join(',')),
       ...chunks.map((c) => fetchJson('https://api.dexscreener.com/latest/dex/tokens/' + c.join(','), 6000)),
+      fetchJson('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=' + CG_SPARK_IDS.join(',') + '&sparkline=true', 9000),
     ]);
     const allPairs = [];
     for (const ds of dsChunks) {
@@ -156,16 +161,27 @@ module.exports = wrap(async (req, res) => {
 
     if (prices.WETH !== undefined) prices.ETH = prices.WETH;
 
+    const cgm = dsChunks.pop();
+    const spark = {};
+    if (Array.isArray(cgm)) {
+      for (const m of cgm) {
+        const syms = SPARK_SYM_BY_ID[m.id] || [];
+        const arr = m.sparkline_in_7d && m.sparkline_in_7d.price;
+        if (Array.isArray(arr) && arr.length > 2) for (const s of syms) spark[s] = arr;
+      }
+    }
+    if (Object.keys(spark).length) lastGoodSpark = spark;
+
     for (const [sym, v] of Object.entries(prices)) {
       if (v !== DEFAULT_PRICES[sym]) lastGoodPrices[sym] = v;
     }
 
     const live = (cg !== null) || allPairs.length > 0 || (kraken !== null && !!kraken.result);
-    const data = { prices, changes, ts: Date.now(), live, source: 'vercel-swapx-market' };
+    const data = { prices, changes, spark: lastGoodSpark, ts: Date.now(), live, source: 'vercel-dragon-market' };
     cache = { data, ts: Date.now() };
     res.setHeader('Cache-Control', 'public, max-age=60');
     return res.status(200).json(data);
   } catch (e) {
-    return res.status(200).json({ prices: lastGoodPrices, changes: {}, ts: Date.now() });
+    return res.status(200).json({ prices: lastGoodPrices, changes: {}, spark: lastGoodSpark, ts: Date.now() });
   }
 });
