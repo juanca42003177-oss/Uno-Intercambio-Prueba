@@ -59,8 +59,25 @@ const CG_SPARK_IDS = ['worldcoin-wld','usd-coin','weth','wrapped-bitcoin','solan
 const SPARK_SYM_BY_ID = { 'worldcoin-wld':['WLD'], 'usd-coin':['USDC'], 'weth':['ETH','WETH'], 'wrapped-bitcoin':['WBTC'], 'solana':['SOL','uSOL'], 'ripple':['uXRP','XRP'], 'dogecoin':['uDOGE','DOGE'], 'sushi':['SUSHI'] };
 let lastGoodSpark = {};
 
+let SPARK_HIST_CACHE = null;
 module.exports = wrap(async (req, res) => {
   try {
+    if (req.query && req.query.spark) {
+      const sym = String(req.query.spark);
+      if (SPARK_HIST_CACHE && Date.now() - SPARK_HIST_CACHE.ts < 240000) {
+        return res.status(200).json({ ok: true, hist: SPARK_HIST_CACHE.data[sym] || [] });
+      }
+      const hr = await fetch('https://api.github.com/repos/' + (process.env.GITHUB_DATA_REPO || 'juanca42003177-oss/dragon-labs-data') + '/contents/history/prices.json?ref=alerts-data', {
+        headers: { Authorization: 'Bearer ' + (process.env.GITHUB_TOKEN || ''), Accept: 'application/vnd.github+json' },
+      });
+      let hdata = {};
+      if (hr.ok) {
+        const hj = await hr.json();
+        try { hdata = JSON.parse(Buffer.from(hj.content, 'base64').toString('utf8') || '{}'); } catch (e) { hdata = {}; }
+        SPARK_HIST_CACHE = { data: hdata, ts: Date.now() };
+      }
+      return res.status(200).json({ ok: true, hist: hdata[sym] || [] });
+    }
     if (cache && Date.now() - cache.ts < 330000) {
       res.setHeader('Cache-Control', 'public, max-age=60');
       return res.status(200).json(cache.data);
