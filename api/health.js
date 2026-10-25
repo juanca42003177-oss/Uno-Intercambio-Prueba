@@ -20,15 +20,30 @@ const RPCS = [
 function gh() { return process.env.GITHUB_TOKEN || process.env.GITHUB_TOKEN_2 || ''; }
 
 async function loadFile(path) {
-  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${path}?ref=${BRANCH}`, {
-    headers: { Authorization: `token ${gh()}`, Accept: 'application/vnd.github.raw+json' },
-  });
-  if (r.status === 404) return { sha: null, data: null };
-  if (!r.ok) throw new Error('leer ' + path + ' HTTP ' + r.status);
-  const sha = (r.headers.get('etag') || '').replace(/"/g, '') || null;
-  let data = null;
-  try { data = JSON.parse(await r.text()); } catch (e) { data = null; }
-  return { sha, data };
+  // 2026-10-25: reintento ante errores transitorios de la API de GitHub (504/5xx/red).
+  // Un blip aislado no debe marcar falla ni despertar al agente. 404 sigue igual (archivo nuevo).
+  const intentos = 3;
+  for (let i = 1; ; i++) {
+    let r;
+    try {
+      r = await fetch(`https://api.github.com/repos/${REPO}/contents/${path}?ref=${BRANCH}`, {
+        headers: { Authorization: `token ${gh()}`, Accept: 'application/vnd.github.raw+json' },
+      });
+    } catch (e) {
+      if (i >= intentos) throw new Error('leer ' + path + ' HTTP red');
+      await new Promise(ok => setTimeout(ok, i * 700));
+      continue;
+    }
+    if (r.status === 404) return { sha: null, data: null };
+    if (!r.ok) {
+      if (r.status >= 500 && i < intentos) { await new Promise(ok => setTimeout(ok, i * 700)); continue; }
+      throw new Error('leer ' + path + ' HTTP ' + r.status);
+    }
+    const sha = (r.headers.get('etag') || '').replace(/"/g, '') || null;
+    let data = null;
+    try { data = JSON.parse(await r.text()); } catch (e) { data = null; }
+    return { sha, data };
+  }
 }
 
 async function saveFile(path, sha, data, msg) {
