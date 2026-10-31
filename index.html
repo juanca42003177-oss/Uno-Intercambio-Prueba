@@ -1019,7 +1019,7 @@ async function connectWallet() {
       }
     }
     if (!window.MiniKit) return showOk('World App sigue cargando. Espera unos segundos y toca Conectar de nuevo.', '⏳');
-    MiniKit.install({ appId: 'app_91fc57acb47e001429f888794210c9f6' });
+    MiniKit.install();
     var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
     var result = await MiniKit.walletAuth({ nonce: nonce, statement: 'Conectar Dragon Trade' });
     if (result && result.data && result.data.address) {
@@ -1755,7 +1755,7 @@ window.addEventListener('load', function() {
       };
     }
   } catch (e) {}
-  if (window.MiniKit) { try { MiniKit.install({ appId: 'app_91fc57acb47e001429f888794210c9f6' }); } catch(e) {} }
+  if (window.MiniKit) { try { MiniKit.install(); } catch(e) {} }
   renderTokenList();
   fetchLivePrices();
   setTimeout(loadVaultPredict, 0);
