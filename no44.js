@@ -553,6 +553,11 @@ async function no44QuoteSwap(tokenIn, tokenOut, amountInStr) {
   });
 
   if (bestOut <= 0n) {
+    var hayRuta2 = !!direct || (leg1ByMid && leg1ByMid.size > 0);
+    if (hayRuta2) {
+      return { ok: true, type: 'dust', expectedOut: '0', minOut: '0', slipBps: multiSlipBps,
+        nota: 'Monto muy chico: el resultado es menor a la unidad minima de este token. El swap se ejecuta igual.' };
+    }
     return { ok: false, note: 'No hay ruta entre estos tokens ahora mismo. Prueba con ETH o WLD de puente.' };
   }
   var finalSlipBps = bestType === 'multi' ? multiSlipBps : slipBps;

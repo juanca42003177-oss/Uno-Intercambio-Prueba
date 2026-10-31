@@ -203,6 +203,13 @@ module.exports = wrap(async (req, res) => {
     }
 
     if (bestOut <= 0n) {
+      // Si la ruta EXISTE pero el monto es tan chico que el resultado se redondea a 0,
+      // no es falta de ruta: se permite el swap por centavos (minOut 0).
+      const hayRuta = !!direct || (leg1ByMid && leg1ByMid.size > 0);
+      if (hayRuta) {
+        return res.status(200).json({ ok: true, type: 'dust', expectedOut: '0', minOut: '0', slipBps: multiSlipBps,
+          nota: 'Monto muy chico: el resultado es menor a la unidad minima de este token. El swap se ejecuta igual.' });
+      }
       return res.status(200).json({ ok: false, note: 'No hay ruta entre estos tokens ahora mismo. Prueba con ETH o WLD de puente.' });
     }
     const finalSlipBps = bestType === 'multi' ? multiSlipBps : slipBps;
