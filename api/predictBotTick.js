@@ -216,29 +216,43 @@ async function sendTx(to, data) {
      comparando la clave publica recuperada con la direccion del bot. */
   let _out;
   try { _out = secp.sign(msgHash, priv, { format: 'recovered' }); }
-  catch (e) { _out = secp.sign(msgHash, priv); }
+  catch (e) { try { _out = secp.sign(msgHash, priv); } catch (e2) { _out = null; } }
+  const mod = await import('@noble/secp256k1');
+  const aDir = (pub) => {
+    const h = keccak_256(pub.slice(1)); let a = '0x';
+    for (let i = 12; i < 32; i++) a += h[i].toString(16).padStart(2, '0');
+    return a.toLowerCase();
+  };
   let _rec = null, _rHex = '', _sHex = '';
-  const _buf = (arr) => Buffer.from(arr).toString('hex');
-  if (_out && _out.length === 65) {
-    _rec = _out[0];
-    _rHex = _buf(_out.slice(1, 33)).replace(/^0+/, '');
-    _sHex = _buf(_out.slice(33, 65)).replace(/^0+/, '');
-  } else {
-    const _c = (_out && _out.length === 64) ? _out : _out.slice(1);
-    _rHex = _buf(_c.slice(0, 32)).replace(/^0+/, '');
-    _sHex = _buf(_c.slice(32, 64)).replace(/^0+/, '');
-    try {
-      const mod = await import('@noble/secp256k1');
-      const sigObj = mod.Signature.fromCompact(_c);
-      for (const rr of [0, 1]) {
-        const pub = sigObj.addRecoveryBit(rr).recoverPublicKey(msgHash).toRawBytes(false);
-        const h2 = keccak_256(pub.slice(1)); let a2 = '0x';
-        for (let i2 = 12; i2 < 32; i2++) a2 += h2[i2].toString(16).padStart(2, '0');
-        if (a2.toLowerCase() === String(from).toLowerCase()) { _rec = rr; break; }
-      }
-    } catch (e) { }
+  const sacar = (bytes) => {
+    const hx = Buffer.from(bytes).toString('hex');
+    return hx.replace(/^0+/, '') || '0';
+  };
+  if (_out && typeof _out.slice === 'function') {
+    if (_out.length === 65) {
+      _rec = _out[0];
+      _rHex = sacar(_out.slice(1, 33));
+      _sHex = sacar(_out.slice(33, 65));
+    } else {
+      _rHex = sacar(_out.slice(0, 32));
+      _sHex = sacar(_out.slice(32, 64));
+    }
+  } else if (_out && _out.r !== undefined) {
+    _rHex = BigInt(_out.r).toString(16);
+    _sHex = BigInt(_out.s).toString(16);
+    if (_out.recovery !== undefined && _out.recovery !== null) _rec = Number(_out.recovery);
   }
-  if (_rec === null || _rec === undefined) _rec = 0;
+  if (!_rHex || !_sHex) throw new Error('no se pudo firmar la transaccion');
+  if (_rec === null || _rec === undefined) {
+    _rec = 0;
+    try {
+      const hayObj = _out && _out.r !== undefined;
+      for (const rr of [0, 1]) {
+        const so = hayObj ? _out.addRecoveryBit(rr) : mod.Signature.fromCompact(_out).addRecoveryBit(rr);
+        if (aDir(so.recoverPublicKey(msgHash).toRawBytes(false)) === String(from).toLowerCase()) { _rec = rr; break; }
+      }
+    } catch (e) { _rec = 0; }
+  }
   const v = 35 + 2 * CHAIN_ID + Number(_rec);
   const signed = rlpList([
     rlpItem(numHex(strip(nonce))),
