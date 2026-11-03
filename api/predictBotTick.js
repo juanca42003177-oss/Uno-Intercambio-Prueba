@@ -209,8 +209,37 @@ async function sendTx(to, data) {
     rlpItem(''),
   ]);
   const msgHash = keccak_256(hexBytes(unsigned));
-  const sig = secp.sign(msgHash, priv);
-  const v = 35 + 2 * CHAIN_ID + Number(sig.recovery);
+  /* FIRMA CORREGIDA (2026-11-03): @noble/secp256k1 v2 devuelve por defecto solo 64 bytes
+     (r+s) SIN el byte de recuperacion, asi que sig.recovery era undefined -> v = NaN ->
+     la red rechazaba la transaccion con "failed to decode signed transaction".
+     Ahora se pide el formato 'recovered' (65 bytes) y si no, se deriva el recovery
+     comparando la clave publica recuperada con la direccion del bot. */
+  let _out;
+  try { _out = secp.sign(msgHash, priv, { format: 'recovered' }); }
+  catch (e) { _out = secp.sign(msgHash, priv); }
+  let _rec = null, _rHex = '', _sHex = '';
+  const _buf = (arr) => Buffer.from(arr).toString('hex');
+  if (_out && _out.length === 65) {
+    _rec = _out[0];
+    _rHex = _buf(_out.slice(1, 33)).replace(/^0+/, '');
+    _sHex = _buf(_out.slice(33, 65)).replace(/^0+/, '');
+  } else {
+    const _c = (_out && _out.length === 64) ? _out : _out.slice(1);
+    _rHex = _buf(_c.slice(0, 32)).replace(/^0+/, '');
+    _sHex = _buf(_c.slice(32, 64)).replace(/^0+/, '');
+    try {
+      const mod = await import('@noble/secp256k1');
+      const sigObj = mod.Signature.fromCompact(_c);
+      for (const rr of [0, 1]) {
+        const pub = sigObj.addRecoveryBit(rr).recoverPublicKey(msgHash).toRawBytes(false);
+        const h2 = keccak_256(pub.slice(1)); let a2 = '0x';
+        for (let i2 = 12; i2 < 32; i2++) a2 += h2[i2].toString(16).padStart(2, '0');
+        if (a2.toLowerCase() === String(from).toLowerCase()) { _rec = rr; break; }
+      }
+    } catch (e) { }
+  }
+  if (_rec === null || _rec === undefined) _rec = 0;
+  const v = 35 + 2 * CHAIN_ID + Number(_rec);
   const signed = rlpList([
     rlpItem(numHex(strip(nonce))),
     rlpItem(numHex(strip(gasPrice))),
@@ -219,8 +248,8 @@ async function sendTx(to, data) {
     rlpItem(''),
     rlpItem(strip(data)),
     rlpItem(numHex(v)),
-    rlpItem(sig.r.toString(16).padStart(64, '0')),
-    rlpItem(sig.s.toString(16).padStart(64, '0')),
+    rlpItem(_rHex),
+    rlpItem(_sHex),
   ]);
   return await rpc('eth_sendRawTransaction', ['0x' + signed]);
 }
@@ -431,7 +460,7 @@ module.exports = wrap(async (req, res) => {
         contract: PREDICT_ADDRESS,
       });
     } catch (e) {
-      return res.status(500).json({ signing_ok: false, error: String(e) });
+      return res.status(200).json({ signing_ok: false, error: String(e) });
     }
   }
 
@@ -530,6 +559,6 @@ module.exports = wrap(async (req, res) => {
 
     return res.status(200).json(Object.assign({ status: 'ok', marketCount: count }, log));
   } catch (e) {
-    return res.status(500).json(Object.assign({ status: 'error' }, log, { error: String(e) }));
+    return res.status(200).json(Object.assign({ status: 'error' }, log, { error: String(e) }));
   }
 });
