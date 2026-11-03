@@ -466,9 +466,20 @@ module.exports = wrap(async (req, res) => {
       const priv = (process.env.PREDICT_BOT_PRIVATE_KEY || '').replace(/^0x/, '').trim();
       const okPriv = priv.length === 64;
       const msgHash = keccak_256(new TextEncoder().encode('dragon-trade-selftest'));
-      const sig = okPriv ? secp.sign(msgHash, priv) : null;
+      let sig = null, rec = null, rHex = '', sHex = '';
+      if (okPriv) {
+        try { sig = secp.sign(msgHash, priv, { format: 'recovered' }); } catch (e) { sig = secp.sign(msgHash, priv); }
+        if (sig && typeof sig.slice === 'function') {
+          if (sig.length === 65) { rec = sig[0]; rHex = Buffer.from(sig.slice(1, 33)).toString('hex'); sHex = Buffer.from(sig.slice(33, 65)).toString('hex'); }
+          else { rHex = Buffer.from(sig.slice(0, 32)).toString('hex'); sHex = Buffer.from(sig.slice(32, 64)).toString('hex'); }
+        } else if (sig && sig.r !== undefined) {
+          rHex = BigInt(sig.r).toString(16); sHex = BigInt(sig.s).toString(16);
+          if (sig.recovery !== undefined) rec = Number(sig.recovery);
+        }
+      }
       return res.status(200).json({
-        signing_ok: !!(sig && sig.r),
+        signing_ok: !!(rHex && sHex && rHex.length > 20),
+        recovery_detectado: (rec === null ? 'derivado' : rec),
         bot_address: addr,
         key_saved: okPriv,
         contract: PREDICT_ADDRESS,
