@@ -298,8 +298,17 @@ async function krakenPriceAt(pair, ts) {
   let lastErr = null;
   for (const interval of [5, 60, 1440]) {
     try {
-      const res = await fetch('https://api.kraken.com/0/public/OHLC?pair=' + pair + '&interval=' + interval, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error('kraken HTTP ' + res.status);
+      // 2026-11-09: Kraken a veces suelta 503 puntual; 2 intentos antes de
+      // escalar de vela o caer al respaldo (Coinbase).
+      let res = null;
+      for (let i = 1; i <= 2; i++) {
+        try {
+          res = await fetch('https://api.kraken.com/0/public/OHLC?pair=' + pair + '&interval=' + interval, { headers: { Accept: 'application/json' } });
+          if (res.ok) break;
+        } catch (e2) { res = null; }
+        if (i < 2) await new Promise(ok => setTimeout(ok, 800));
+      }
+      if (!res || !res.ok) throw new Error('kraken HTTP ' + (res ? res.status : 'red'));
       const j = await res.json();
       if (j.error && j.error.length) throw new Error('kraken: ' + j.error[0]);
       const key = Object.keys(j.result || {}).find((k) => k !== 'last');

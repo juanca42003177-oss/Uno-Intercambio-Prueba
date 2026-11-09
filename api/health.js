@@ -115,11 +115,29 @@ module.exports = wrap(async (req, res) => {
   }
   if (!rpcOk) problemas.push('ningún RPC de World Chain responde (el bot no puede resolver mercados)');
 
-  // 3) fuente de precios viva (para resolver mercados con precio de apertura)
-  try {
-    const r = await fetch('https://api.kraken.com/0/public/Ticker?pair=XBTUSD', { headers: { 'User-Agent': 'vigia' } });
-    if (!r.ok) problemas.push('fuente de precios (Kraken) responde HTTP ' + r.status);
-  } catch (e) { problemas.push('fuente de precios (Kraken) inalcanzable'); }
+  // 3) fuente de precios viva (para resolver mercados con precio de apertura).
+  // 2026-11-09: el bot usa Kraken primero y Coinbase de respaldo (majorPriceAt).
+  // Un 503 puntual de Kraken ya no marca falla: se reintenta 3 veces y, si sigue
+  // caido, se verifica el plan B real (Coinbase). Solo es FALLA si NINGUNA
+  // fuente responde, porque entonces el bot no puede resolver mercados.
+  let krakenOk = false, krakenStatus = 0, cbOk = false;
+  for (let i = 1; i <= 3 && !krakenOk; i++) {
+    try {
+      const r = await fetch('https://api.kraken.com/0/public/Ticker?pair=XBTUSD', { headers: { 'User-Agent': 'vigia' } });
+      krakenStatus = r.status;
+      if (r.ok) krakenOk = true;
+    } catch (e) { krakenStatus = 0; }
+    if (!krakenOk && i < 3) await new Promise(ok => setTimeout(ok, i * 1200));
+  }
+  if (!krakenOk) {
+    try {
+      const r = await fetch('https://api.exchange.coinbase.com/products/BTC-USD/ticker', { headers: { 'User-Agent': 'vigia' } });
+      if (r.ok) cbOk = true;
+    } catch (e) { }
+    if (!cbOk) problemas.push('fuente de precios caida: Kraken HTTP ' + (krakenStatus || 'red') + ' y Coinbase (respaldo) tampoco responde, el bot no puede resolver mercados');
+  }
+  const avisos = [];
+  if (!krakenOk && cbOk) avisos.push('Kraken caido (HTTP ' + (krakenStatus || 'red') + '): el bot esta resolviendo precios con Coinbase de respaldo. Recuperacion automatica cuando Kraken vuelva.');
 
   const ok = problemas.length === 0;
 
@@ -147,5 +165,5 @@ module.exports = wrap(async (req, res) => {
     } catch (e) { }
   }
 
-  res.status(ok ? 200 : 503).json({ ok, vigia: true, rpcOk, problemas });
+  res.status(ok ? 200 : 503).json({ ok, vigia: true, rpcOk, problemas, avisos });
 });
