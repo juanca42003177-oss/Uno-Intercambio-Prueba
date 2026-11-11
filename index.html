@@ -466,10 +466,7 @@ select{border:1px solid var(--border);background:var(--card2);color:#eaecef;padd
       <div style="font-weight:800;color:#f0b90b">💰 Bóveda de Staking (LP)</div>
       <div class="small" style="margin-top:4px;line-height:1.5">Deposita tu token favorito. El contrato cambia la mitad al otro token de la pareja y mete <b>liquidez real</b> al pool de Uniswap, generando comisiones de cada intercambio. Tu dinero nunca sale de la cadena y la plataforma solo cobra <b>20% de la ganancia</b>, jamás de tu capital. Bloqueo de 30 días, mínimo $1.</div>
     </div>
-    <div style="margin-top:14px">
-      <div style="font-weight:800;color:#f0b90b">🎯 Predicciones</div>
-      <div class="small" style="margin-top:4px;line-height:1.5">Apuesta en USDC si un token <b>sube o baja</b> en las próximas 24 horas (WLD, ETH, WBTC, uSOL, uXRP, uDOGE, SUSHI, CHAD). Mínimo $1. Si aciertas, te llevas tu parte del pozo de quienes fallaron. Comisión de solo 1% al resolver; si nadie acierta, todos reciben su dinero de vuelta.</div>
-    </div>
+    
     <div style="margin-top:14px">
       <div style="font-weight:800;color:#f0b90b">🔄 Swap</div>
       <div class="small" style="margin-top:4px;line-height:1.5">Intercambia más de 15 tokens reales con precios en vivo y liquidez verificada, directo de tu wallet de World App.</div>
@@ -758,7 +755,9 @@ function renderHist() {
   });
   el.innerHTML = html;
 }
+var AZAR_VISIBLE = false; // Revision World App: false oculta Predicciones y Damas. Cambiar a true para reactivarlos.
 function go(page) {
+  if (!AZAR_VISIBLE && (page === 'pred' || page === 'damas')) return;
   // proteccion anti-toque-accidental: no salir de Damas a media partida sin confirmar
   if (page !== 'damas' && !window.__damasLeaving && typeof damasInMatch === 'function' && damasInMatch()) {
     damasAsk(damasLeaveWarning(), 'Sí, salir', 'Continuar jugando').then(function (ok) {
@@ -2724,5 +2723,13 @@ async function doCreateMarket() {
     <canvas id="dchModalCanvas" style="width:100%;height:300px;display:block;margin-top:10px"></canvas>
   </div>
 </div>
+
+<script>
+/* Predicciones y Damas quedan fuera del envio a World App por ser juegos de azar.
+   Para reactivarlos: poner AZAR_VISIBLE = true (arriba) y recargar. */
+if (typeof AZAR_VISIBLE !== 'undefined' && !AZAR_VISIBLE) {
+  document.querySelectorAll('[onclick="go(\'pred\')"],[onclick="go(\'damas\')"]').forEach(function (el) { el.style.display = 'none'; });
+}
+</script>
 </body>
 </html>
